@@ -4,7 +4,7 @@ Created on 31 dic 2021
 @author: david
 '''
 
-import Logic.Carta
+import logic.Carta
 import Game
 import Output
 import Game.Germini
@@ -86,7 +86,7 @@ def on_init():
         
         img_man = ImageManager()    
         screen = pygame.display.set_mode((0, 0), pygame.RESIZABLE)        
-        carta_man = Logic.Carta.carta
+        carta_man = logic.Carta.carta
         set_areas()
         set_positions()
         

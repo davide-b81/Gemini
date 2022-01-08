@@ -7,11 +7,11 @@ Created on 31 dic 2021
 '''
 
 import decks.mazzo
-import Logic.Carta
+import logic.Carta
 import Game.Player
 from Game.Player import Giocatore
-from Logic.Carta import GetGreater
-from Logic.Carta import IsCartiglia
+from logic.Carta import GetGreater
+from logic.Carta import IsCartiglia
 from pickle import NONE
 from decks import mazzo_97
 import pygame
