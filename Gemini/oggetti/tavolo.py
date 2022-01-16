@@ -24,11 +24,14 @@ class TavoloArea(object):
 
     def get_next_pos(self, pos, antior = True):
         i = self._posizioni.index(pos)
-        if i > 0:
-            i = (i - 1) % len(self._posizioni)
+        if antior == False:
+            i = (i + 1) % len(self._posizioni)
         else:
-            i = len(self._posizioni) - 1
-            
+            if i > 0:
+                i = (i - 1) % len(self._posizioni)
+            else:
+                i = len(self._posizioni) - 1
+
         return self._posizioni[i]
         
     def draw(self, screen):

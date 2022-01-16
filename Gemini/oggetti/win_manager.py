@@ -41,9 +41,9 @@ class App:
 
             g = game(nomigiocatore)
     
-            g.FormaCoppie()
+            g.forma_coppie()
             #print("Mazziere: " + g.GetMazziere())            
-            g.Manche()
+            g.manche()
             print("\n")
             self.newgame_callback()
         except Exception as e:

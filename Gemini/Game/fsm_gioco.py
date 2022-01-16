@@ -6,6 +6,7 @@ Created on 3 gen 2022
 from time import monotonic
 from abc import ABCMeta, abstractmethod
 from oggetti.stringhe import _
+from main.exception_man import ExceptionMan
 
 class FsmGioco(metaclass=ABCMeta):
     '''
@@ -22,13 +23,15 @@ class FsmGioco(metaclass=ABCMeta):
     game_man = None
     winner = None
     giocatore_turno = None
+    delay = 0.3
 
-    STATUS_INIZIO = "Inizio"
-    STATUS_FINE = "Fine"
-    STATUS_DISTRIBUZIONE1 = "Distribuzione1"
-    STATUS_DISTRIBUZIONE2 = "Distribuzione2"
-    STATUS_MESCOLA = "Mescola"
-    STATUS_TAGLIA = "Taglia"
+    STATUS_INIZIO = "INIZIO"
+    STATUS_FINE = "FINE"
+    STATUS_DISTRIBUZIONE1 = "DISTRIBUZIONE1"
+    STATUS_DISTRIBUZIONE2 = "DISTRIBUZIONE2"
+    STATUS_MESCOLA = "MESCOLA"
+    STATUS_TAGLIA = "TAGLIA"
+    STATUS_DICHIARA = "DICHIARAZIONE"
 
     def __init__(self, gamman = None, genman = None):
         '''
@@ -89,11 +92,10 @@ class FsmGioco(metaclass=ABCMeta):
         return self.winner
     
     def update_game(self):
+        try:
+            if self.running:
+                handler = self.handlers[self.status]
 
-        if self.running:
-            handler = self.handlers[self.status]
-            
-            try:
                 if self.running:
                     handler()
                     if self.status != self.new_status.upper():
@@ -103,7 +105,7 @@ class FsmGioco(metaclass=ABCMeta):
                         handler = self.handlers[self.status]
                         print("update_game set status: " + str(self.status))
 
-            except Exception as e:
-                print("FsmGioco.update_game: An error occurred:", e.args[0])  
+        except Exception as e:
+            ExceptionMan.manage_exception(".update_game: An error occurred.", e, True)
 
             

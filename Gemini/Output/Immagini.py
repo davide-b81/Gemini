@@ -8,7 +8,7 @@ Requirements:
 python3 -m pip install Pillow
 
 '''
-from logic.Carta import carta
+from game import carta
 from tkinter import PhotoImage
 
 class Foto(object):

@@ -6,7 +6,7 @@ Created on 2 gen 2022
 
 import pygame
 
-class Button:
+class ButtonPygame:
     gui_font = None
     screen = None
     elevation = 5
