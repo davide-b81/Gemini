@@ -8,7 +8,7 @@ Requirements:
 python3 -m pip install Pillow
 
 '''
-from game import carta
+from decks import carta
 from tkinter import PhotoImage
 
 class Foto(object):
@@ -126,6 +126,6 @@ class Foto(object):
         Constructor
         '''
         for key, value in Foto.dict_files.items():
-            print("Load " + key.name)
+            echo_message("Load " + key._name)
             self.imgs.append(PhotoImage(file="images\\"+value))
             

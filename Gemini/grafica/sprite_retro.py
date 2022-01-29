@@ -5,14 +5,16 @@ Created on 6 gen 2022
 '''
 import pygame
 from pygame.sprite import Sprite
+from main.globals import *
+from main.exception_man import ExceptionMan
 
 
 class SpriteRetro(pygame.sprite.Sprite):
     '''
     classdocs
     '''
-    rect = (0, 0)
-    visible = False
+    rect = None
+    visible = None
 
     def __init__(self, img):
         '''
