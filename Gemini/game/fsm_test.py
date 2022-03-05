@@ -14,6 +14,8 @@ class FsmTest(FsmGioco):
     classdocs
     '''
 
+    delay = 0.3
+
     def __init__(self, gamman=None, genman=None):
         '''
         Constructor
@@ -36,27 +38,26 @@ class FsmTest(FsmGioco):
         super().start_game()
 
     def inizio(self):
-        self.new_status = "IoPesco"
+        self._status_next = "IoPesco"
 
     def io_pesco(self):
-        if self.t_status + self.delay < monotonic():
+        if self._t_status + self.delay < monotonic():
             try:
                 g = self.general_man.get_player_at_pos("Nord")
 
                 c = self.general_man.pesca_dal_mazzo(g)
                 while c != None:
-                    g.assegna_carta(c)
-                    self.game_man.gira_carta(c, True)
+                    self.game_man.set_fronte(c, FRONT_SCOPERTA)
                     c = self.general_man.pesca_dal_mazzo(g)
 
                 #c = self.calata(g, c)
                 self.txt = "Ho pescato " + str(c)
             except Exception as e:
                 ExceptionMan.manage_exception("", e, True)
-            self.new_status = "OvestPesca"
+            self._status_next = "OvestPesca"
 
     def ovest_pesca(self):
-        if self.t_status + self.delay < monotonic():
+        if self._t_status + self.delay < monotonic():
             try:
                 #g = self.general_man.get_player_at_pos("Ovest")
                 #c = self.general_man.pesca_dal_mazzo(g)
@@ -69,55 +70,52 @@ class FsmTest(FsmGioco):
             #self.new_status = "NordPesca"
 
     def nord_pesca(self):
-        if self.t_status + self.delay < monotonic():
+        if self._t_status + self.delay < monotonic():
             try:
                 g = self.general_man.get_player_at_pos("Nord")
                 c = self.general_man.pesca_dal_mazzo(g)
-                g.assegna_carta(c)
                 c = self.calata(g, c)
                 self.txt = "Nord ha pescato " + str(c)
             except Exception as e:
                 ExceptionMan.manage_exception("", e, True)
-            self.new_status = "EstPesca"
+            self._status_next = "EstPesca"
 
     def est_pesca(self):
-        if self.t_status + self.delay < monotonic():
+        if self._t_status + self.delay < monotonic():
             try:
                 g = self.general_man.get_player_at_pos("Est")
                 c = self.general_man.pesca_dal_mazzo(g)
-                g.assegna_carta(c)
                 c = self.calata(g, c)
                 self.txt = "Est ha pescato " + str(c)
             except Exception as e:
                 ExceptionMan.manage_exception("", e, True)
-            self.new_status = "Risultato"
+            self._status_next = "Risultato"
 
     def risultato(self):
-        if self.t_status + self.delay < monotonic():
+        if self._t_status + self.delay < monotonic():
             # Prende la carta di ogni posizione
-            c_s = self.general_man.carte_in_tavola("Sud")
-            c_w = self.general_man.carte_in_tavola("Ovest")
-            c_n = self.general_man.carte_in_tavola("Nord")
-            c_e = self.general_man.carte_in_tavola("Est")
-
+            c_s = self.general_man.get_carte_in_tavola("Sud")
+            c_w = self.general_man.get_carte_in_tavola("Ovest")
+            c_n = self.general_man.get_carte_in_tavola("Nord")
+            c_e = self.general_man.get_carte_in_tavola("Est")
+            clist = self.general_man.prendi_tavola()
             # TODO: Gestire il caso di pari (si rifa la distribuzione)
-            c_win = get_greater(c_s[0], c_w[0])
-            c_win = get_greater(c_win, c_n[0])
-            c_win = get_greater(c_win, c_e[0])
 
-            if (c_win == c_s[0]):
+            c_win = get_greater(clist)
+
+            if c_win in c_s:
                 self.winner = "Sud"
-            elif (c_win == c_w[0]):
+            elif c_win in c_w:
                 self.winner = "Ovest"
-            elif (c_win == c_n[0]):
+            elif c_win in c_n:
                 self.winner = "Nord"
-            elif (c_win == c_e[0]):
+            elif c_win in c_e:
                 self.winner = "Est"
             else:
                 assert False
 
             self.txt = "Vince " + self.winner + " con " + str(c_win)
-            self.new_status = FsmGioco.STATUS_FINE
+            self._status_next = FsmGioco.STATUS_FINE
 
     def fine(self):
         pass

@@ -40,5 +40,4 @@ class TextBox(UITextBox):
 
 
     def set_text(self, txt):
-        print(txt)
         self.append_html_text(_(txt))

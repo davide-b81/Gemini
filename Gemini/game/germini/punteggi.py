@@ -33,6 +33,10 @@ punti_ger = {
     CartaId.BASTO_R: 5
 }
 
+def is_conto(c):
+    global punti_ger
+    return c.get_id in punti_ger
+
 punti_vers = {
     CartaId.MATTO_0: 5,
     CartaId.PAPA_I: 5,
@@ -120,6 +124,15 @@ class Versicole(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def reset(self):
+        self.vers_re.clear()
+        self.vers_papi.clear()
+        self.vers_matto.clear()
+        self.vers_diecine.clear()
+        self.vers_tredici.clear()
+        self.vers_demoge.clear()
+        self.vers_sopra27.clear()
+
     def gestisci_carte(self, mano):
         try:
             self.riempi(mano, self.vers_re, self.VERSICOLA_RE)
@@ -129,19 +142,22 @@ class Versicole(object):
             self.riempi(mano, self.vers_tredici, self.VERSICOLA_TREDICI)
             self.riempi(mano, self.vers_demoge, self.VERSICOLA_DEMOGE)
             self.riempi(mano, self.vers_sopra27, self.VERSICOLA_SOPRA27)
+
             self.dichiara()
+
         except Exception as e:
             ExceptionMan.manage_exception("Error: ", e, True)
 
     def dichiara(self):
         try:
-            self.versicola_verifica(self.VERSICOLA_RE)
-            self.versicola_verifica(self.VERSICOLA_PAPI)
-            self.versicola_verifica(self.VERSICOLA_MATTO)
-            self.versicola_verifica(self.VERSICOLA_DIECINE)
-            self.versicola_verifica(self.VERSICOLA_TREDICI)
-            self.versicola_verifica(self.VERSICOLA_DEMOGE)
-            self.versicola_verifica(self.VERSICOLA_SOPRA27)
+
+            self.versicola_verifica(self.vers_papi, self.VERSICOLA_PAPI)
+            self.versicola_verifica(self.vers_matto, self.VERSICOLA_MATTO)
+            self.versicola_verifica(self.vers_diecine, self.VERSICOLA_DIECINE)
+            self.versicola_verifica(self.vers_tredici, self.VERSICOLA_TREDICI)
+            self.versicola_verifica(self.vers_demoge, self.VERSICOLA_DEMOGE)
+            self.versicola_verifica(self.vers_sopra27, self.VERSICOLA_SOPRA27)
+
         except Exception as e:
             ExceptionMan.manage_exception("Error: ", e, True)
 
@@ -155,13 +171,13 @@ class Versicole(object):
         global punti_vers
         punti = 0
 
-        try:
-            if len(self.vers_re) >= 3:
-                for c in mano:
-                    if c.get_id() in punti_vers:
-                        punti = punti + punti_vers[c.get_id()]
-        except Exception as e:
-            ExceptionMan.manage_exception("Error: ", e, True)
+        #try:
+        #    if mano.intersect(self.vers_re).count() >= 3:
+        #        for c in mano:
+        #            if c.get_id() in punti_vers:
+        #                punti = punti + punti_vers[c.get_id()]
+        #except Exception as e:
+        #    ExceptionMan.manage_exception("Error: ", e, True)
 
         return punti
 
@@ -169,48 +185,22 @@ class Versicole(object):
         # TODO: Si allungano solo le versicole con carte non giocate?
         pass
 
-    def versicola_verifica(self, ver):
-        punti = 0
+    def versicola(self, ca, vers):
+        vers_set = set(vers)
+        intersection = vers_set.intersection(ca)
 
-        assert self.giocatore != None
+    def versicola_verifica(self, vers, id):
         try:
-            if (ver == self.VERSICOLA_RE):
-                    punti = self.conta(self.vers_re)
-                    if punti > 0:
-                        self._delegate_on_dichiara(self.giocatore + " dichiara versicola dei re - " + str(punti) + " punti.")
-
-            elif (ver == self.VERSICOLA_PAPI):
-                    punti = self.conta(self.vers_papi)
-                    if punti > 0:
-                        self._delegate_on_dichiara(self.giocatore + " dichiara versicola dei papi - " + str(punti) + " punti.")
-
-            elif (ver == self.VERSICOLA_MATTO):
-                    punti = self.conta(self.vers_matto)
-                    if punti > 0:
-                        self._delegate_on_dichiara(self.giocatore + " dichiara versicola del matto - " + str(punti) + " punti.")
-
-            elif (ver == self.VERSICOLA_DIECINE):
-                    punti = self.conta(self.vers_diecine)
-                    if punti > 0:
-                        self._delegate_on_dichiara(self.giocatore + " dichiara versicola delle diecine - " + str(punti) + " punti.")
-
-            elif  (ver == self.VERSICOLA_TREDICI):
-                    punti = self.conta(self.vers_tredici)
-                    if punti > 0:
-                        self._delegate_on_dichiara(self.giocatore + " dichiara versicola del tredici - " + str(punti) + " punti.")
-
-            elif (ver == self.VERSICOLA_DEMOGE):
-                    punti = self.conta(self.vers_demoge)
-                    if punti > 0:
-                        self._delegate_on_dichiara("Versicola della carne - punti " + str(punti))
-
-            else:
-                punti = self.verifica_sopra27()
+            assert self.giocatore != None
+            if self.conta(vers) >= 3:
+                punti = self.conta(self.vers)
+                self._delegate_on_dichiara(self.giocatore + " dichiara versicola " + str(id) + " punti " + punti)
+                self.giocatore.somma_punti(punti)
+                return punti
 
         except Exception as e:
             ExceptionMan.manage_exception("Error: ", e, True)
-
-        return punti
+        return 0
 
     def verifica_sopra27(self):
         try:

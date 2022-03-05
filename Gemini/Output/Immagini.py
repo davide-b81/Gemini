@@ -8,8 +8,10 @@ Requirements:
 python3 -m pip install Pillow
 
 '''
+from main.globals import *
 from decks import carta
 from tkinter import PhotoImage
+
 
 class Foto(object):
     '''

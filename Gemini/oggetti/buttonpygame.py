@@ -3,6 +3,7 @@ Created on 2 gen 2022
 
 @author: david
 '''
+from importlib import resources
 
 import pygame
 
@@ -12,7 +13,7 @@ class ButtonPygame:
     elevation = 5
     hndl = None
 
-    def __init__(self, screen, text, width, height, pos, hndl = None):
+    def __init__(self, screen, text, width, height, pos, hndl=None):
         #Core attributes 
         self.pressed = False
         self.hndl = hndl
@@ -22,23 +23,22 @@ class ButtonPygame:
         # top rectangle 
         self.top_rect = pygame.Rect(pos,(width,height))
         self.top_color = '#475F77'
-        #self.translation = translation
         # bottom rectangle 
         self.bottom_rect = pygame.Rect(pos,(width,height))
         self.bottom_color = '#354B5E'
-        #text
         self.text = text
-        
-        self.gui_font = pygame.font.SysFont("Arial", 20)
-        self.text_surf = self.gui_font.render(text,True,'#FFFFFF')
-        self.text_rect = self.text_surf.get_rect(center = self.top_rect.center)
+        path = resources.path("fonts", "cmr8.ttf")
+        self.gui_font = pygame.font.Font(path, 20)
+
+        self.text_surf = self.gui_font.render(text, True, '#FFFFFF')
+        self.text_rect = self.text_surf.get_rect(center=self.top_rect.center)
         self.screen = screen
 
     '''
     '''     
     def change_text(self, newtext):
-        self.text_surf = self.gui_font.render(newtext, True,'#FFFFFF')
-        self.text_rect = self.text_surf.get_rect(center = self.top_rect.center)
+        self.text_surf = self.gui_font.render(newtext, True, '#FFFFFF')
+        self.text_rect = self.text_surf.get_rect(center=self.top_rect.center)
  
     def draw(self):
         # elevation logic 
@@ -48,8 +48,8 @@ class ButtonPygame:
         self.bottom_rect.midtop = self.top_rect.midtop
         self.bottom_rect.height = self.top_rect.height + self.dynamic_elecation
  
-        pygame.draw.rect(self.screen,self.bottom_color, self.bottom_rect,border_radius = 12)
-        pygame.draw.rect(self.screen,self.top_color, self.top_rect,border_radius = 12)
+        pygame.draw.rect(self.screen, self.bottom_color, self.bottom_rect, border_radius=12)
+        pygame.draw.rect(self.screen, self.top_color, self.top_rect, border_radius=12)
         self.screen.blit(self.text_surf, self.text_rect)
         
         mouse_pos = pygame.mouse.get_pos()

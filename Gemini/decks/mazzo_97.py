@@ -20,6 +20,7 @@ class Mazzo97(Mazzo):
         Constructor
         '''
         super().__init__()
+        self.ripristina()
 
 
     def ripristina(self):

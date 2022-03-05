@@ -10,7 +10,6 @@ class Seme(Enum):
     DENARI = 3,
     TRIONFO = 4
 
-
 class CartaId(Enum):
     '''
     classdocs
@@ -268,6 +267,111 @@ card_name[CartaId.SOLE_XXXVIII] = "Il Sole"
 card_name[CartaId.MONDO_XXXIX] = "Il Mondo"
 card_name[CartaId.TROMBA_XL] = "La Tromba"
 
+card_short_name = {}
+card_short_name[CartaId.DANAR_A] = "AD"
+card_short_name[CartaId.DANAR_2] = "2D"
+card_short_name[CartaId.DANAR_3] = "3D"
+card_short_name[CartaId.DANAR_4] = "4D"
+card_short_name[CartaId.DANAR_5] = "5D"
+card_short_name[CartaId.DANAR_6] = "6D"
+card_short_name[CartaId.DANAR_7] = "7D"
+card_short_name[CartaId.DANAR_8] = "8D"
+card_short_name[CartaId.DANAR_9] = "9D"
+card_short_name[CartaId.DANAR_X] = "XD"
+card_short_name[CartaId.DANAR_F] = "FD"
+card_short_name[CartaId.DANAR_C] = "CD"
+card_short_name[CartaId.DANAR_D] = "QD"
+card_short_name[CartaId.DANAR_R] = "KD"
+card_short_name[CartaId.SPADE_A] = "AS"
+card_short_name[CartaId.SPADE_2] = "2S"
+card_short_name[CartaId.SPADE_3] = "3S"
+card_short_name[CartaId.SPADE_4] = "4S"
+card_short_name[CartaId.SPADE_5] = "5S"
+card_short_name[CartaId.SPADE_6] = "6S"
+card_short_name[CartaId.SPADE_7] = "7S"
+card_short_name[CartaId.SPADE_8] = "8S"
+card_short_name[CartaId.SPADE_9] = "9S"
+card_short_name[CartaId.SPADE_X] = "XS"
+card_short_name[CartaId.SPADE_F] = "FS"
+card_short_name[CartaId.SPADE_C] = "CS"
+card_short_name[CartaId.SPADE_D] = "QS"
+card_short_name[CartaId.SPADE_R] = "KS"
+card_short_name[CartaId.COPPE_A] = "AC"
+card_short_name[CartaId.COPPE_2] = "2C"
+card_short_name[CartaId.COPPE_3] = "3C"
+card_short_name[CartaId.COPPE_4] = "4C"
+card_short_name[CartaId.COPPE_5] = "5C"
+card_short_name[CartaId.COPPE_6] = "6C"
+card_short_name[CartaId.COPPE_7] = "7C"
+card_short_name[CartaId.COPPE_8] = "8C"
+card_short_name[CartaId.COPPE_9] = "9C"
+card_short_name[CartaId.COPPE_X] = "XC"
+card_short_name[CartaId.COPPE_F] = "FC"
+card_short_name[CartaId.COPPE_C] = "CC"
+card_short_name[CartaId.COPPE_D] = "QC"
+card_short_name[CartaId.COPPE_R] = "KC"
+card_short_name[CartaId.BASTO_A] = "AB"
+card_short_name[CartaId.BASTO_2] = "2B"
+card_short_name[CartaId.BASTO_3] = "3B"
+card_short_name[CartaId.BASTO_4] = "4B"
+card_short_name[CartaId.BASTO_5] = "5B"
+card_short_name[CartaId.BASTO_6] = "6B"
+card_short_name[CartaId.BASTO_7] = "7B"
+card_short_name[CartaId.BASTO_8] = "8B"
+card_short_name[CartaId.BASTO_9] = "9B"
+card_short_name[CartaId.BASTO_X] = "XB"
+card_short_name[CartaId.BASTO_F] = "FB"
+card_short_name[CartaId.BASTO_C] = "CB"
+card_short_name[CartaId.BASTO_D] = "QB"
+card_short_name[CartaId.BASTO_R] = "KB"
+card_short_name[CartaId.MATTO_0] = "0"
+card_short_name[CartaId.PAPA_I] = " I"
+card_short_name[CartaId.PAPA_II] = "II"
+card_short_name[CartaId.PAPA_III] = "III"
+card_short_name[CartaId.PAPA_IV] = "IV"
+card_short_name[CartaId.PAPA_V] = "V"
+card_short_name[CartaId.TEMPER_VI] = "VI"
+card_short_name[CartaId.FORZA_VII] = "VII"
+card_short_name[CartaId.GIUST_VIII] = "VIII"
+card_short_name[CartaId.ROTA_IX] = "IX"
+card_short_name[CartaId.CARRO_X] = "X"
+card_short_name[CartaId.TEMPO_XI] = "XI"
+card_short_name[CartaId.APPESO_XII] = "XII"
+card_short_name[CartaId.MORTE_XIII] = "XIII"
+card_short_name[CartaId.DIAVOLO_XIV] = "XIV"
+card_short_name[CartaId.TORRE_XV] = "XV"
+card_short_name[CartaId.SPERANZA_XVI] = "XVI"
+card_short_name[CartaId.PRUDENZA_XVII] = "XVII"
+card_short_name[CartaId.FEDE_XVIII] = "XVIII"
+card_short_name[CartaId.CARITA_XIX] = "XIX"
+card_short_name[CartaId.FUOCO_XX] = "XX"
+card_short_name[CartaId.ACQUA_XXI] = "XXI"
+card_short_name[CartaId.TERRA_XXII] = "XXII"
+card_short_name[CartaId.ARIA_XXIII] = "XXIII"
+card_short_name[CartaId.BILANCIA_XXIV] = "XXIV"
+card_short_name[CartaId.VERGINE_XXV] = "XXV"
+card_short_name[CartaId.SCORP_XXVI] = "XXVI"
+card_short_name[CartaId.ARIETE_XXVII] = "XXVII"
+card_short_name[CartaId.CAPRIC_XXVIII] = "XXVIII"
+card_short_name[CartaId.SAGITT_XXIX] = "XXIX"
+card_short_name[CartaId.CANCRO_XXX] = "XX"
+card_short_name[CartaId.PESCI_XXXI] = "XXXI"
+card_short_name[CartaId.ACQUARIO_XXXII] = "XXXII"
+card_short_name[CartaId.LEONE_XXXIII] = "XXXIII"
+card_short_name[CartaId.TORO_XXXIV] = "XXXIV"
+card_short_name[CartaId.GEMINI_XXXV] = "XXXV"
+card_short_name[CartaId.STELLA_XXXVI] = "XXXVI"
+card_short_name[CartaId.LUNA_XXXVII] = "XXXVII"
+card_short_name[CartaId.SOLE_XXXVIII] = "XXXVIII"
+card_short_name[CartaId.MONDO_XXXIX] = "XXXIX"
+card_short_name[CartaId.TROMBA_XL] = "XL"
+
+seme_name = {}
+seme_name[Seme.DENARI] = "Denari"
+seme_name[Seme.SPADE] = "Spade"
+seme_name[Seme.COPPE] = "Coppe"
+seme_name[Seme.BASTONI] = "Bastoni"
+seme_name[Seme.TRIONFO] = "Tarocco"
 
 def is_tarocco(cid):
     global tarocco
@@ -277,6 +381,15 @@ def is_tarocco(cid):
         ExceptionMan.manage_exception("", e, True)
     return None
 
+def count_seme(ca, seme):
+    try:
+        n = 0
+        for c in ca:
+            if str(get_seme(c.get_id())) == str(seme):
+                n = n + 1
+        return n
+    except Exception as e:
+        ExceptionMan.manage_exception("", e, True)
 
 def seme_carta(a):
     global denari, spade, coppe, bastoni, tarocco
@@ -292,9 +405,8 @@ def seme_carta(a):
         else:
             return Seme.TRIONFO
     except Exception as e:
-        ExceptionMan.manage_exception("", e, True)
+        ExceptionMan.manage_exception(str(a), e, True)
     return None
-
 
 def get_seme(cid):
     try:
@@ -302,7 +414,6 @@ def get_seme(cid):
     except Exception as e:
         ExceptionMan.manage_exception("", e, True)
     return None
-
 
 def get_numerale(id):
     try:
@@ -321,34 +432,75 @@ def get_numerale(id):
     except Exception as e:
         ExceptionMan.manage_exception("", e, True)
 
-
-def get_greater(a, b):
+def get_greater(clist):
     try:
-        if (a == None):
-            return b
-        elif (b == None):
-            return a
-        elif get_seme(a) == get_seme(b):
-            if get_numerale(a) > get_numerale(b):
-                return a
-            elif get_numerale(a) < get_numerale(b):
-                return b
+        g = None
+        for c in clist:
+            if g is None:
+                g = c
+            elif get_seme(c) == get_seme(g):
+                if get_numerale(c) > get_numerale(g):
+                    g = c
+            elif get_seme(c) == Seme.TRIONFO:
+                g = c
+            elif get_seme(g) == Seme.TRIONFO:
+                pass
+            elif get_numerale(c) == get_numerale(g):
+                pass
+            elif get_numerale(c) > get_numerale(g):
+                g = c
             else:
-                return None
-        elif get_seme(a) == Seme.TRIONFO:
-            return a
-        elif get_seme(b) == Seme.TRIONFO:
-            return b
-        elif get_numerale(a) == get_numerale(b):
-            return None
-        elif get_numerale(a) > get_numerale(b):
-            return a
-        else:
-            return b
+                pass
     except Exception as e:
         ExceptionMan.manage_exception("", e, True)
     return None
 
+def is_sopraventi(cid):
+    try:
+        if cid == CartaId.ACQUA_XXI:
+            return True
+        elif cid == CartaId.TERRA_XXII:
+            return True
+        elif cid == CartaId.ARIA_XXIII:
+            return True
+        elif cid == CartaId.BILANCIA_XXIV:
+            return True
+        elif cid == CartaId.VERGINE_XXV:
+            return True
+        elif cid == CartaId.SCORP_XXVI:
+            return True
+        elif cid == CartaId.ARIETE_XXVII:
+            return True
+        elif cid == CartaId.CAPRIC_XXVIII:
+            return True
+        elif cid == CartaId.SAGITT_XXIX:
+            return True
+        elif cid == CartaId.CANCRO_XXX:
+            return True
+        elif cid == CartaId.PESCI_XXXI:
+            return True
+        elif cid == CartaId.ACQUARIO_XXXII:
+            return True
+        elif cid == CartaId.LEONE_XXXIII:
+            return True
+        elif cid == CartaId.TORO_XXXIV:
+            return True
+        elif cid == CartaId.GEMINI_XXXV:
+            return True
+        elif cid == CartaId.STELLA_XXXVI:
+            return True
+        elif cid == CartaId.LUNA_XXXVII:
+            return True
+        elif cid == CartaId.SOLE_XXXVIII:
+            return True
+        elif cid == CartaId.MONDO_XXXIX:
+            return True
+        elif cid == CartaId.TROMBA_XL:
+            return True
+        else:
+            return False
+    except Exception as e:
+        ExceptionMan.manage_exception("", e, True)
 
 def is_cartiglia(cid):
     try:
@@ -358,6 +510,13 @@ def is_cartiglia(cid):
         ExceptionMan.manage_exception("", e, True)
     return None
 
+def get_short_name(cid):
+    global card_short_name
+    try:
+        return card_short_name[cid]
+    except Exception as e:
+        ExceptionMan.manage_exception("", e, True)
+    return None
 
 def get_card_name(cid):
     global card_name
