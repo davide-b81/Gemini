@@ -1,0 +1,1 @@
+B:\Users\david\AppData\Local\Programs\Python\Python310\Tools\i18n\msgfmt.py -o base.po

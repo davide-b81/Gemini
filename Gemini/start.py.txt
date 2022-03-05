@@ -1,0 +1,49 @@
+# Python Version 2.7.3
+# File: minesweeper.py
+
+from tkinter import *
+from tkinter import messagebox as tkMessageBox
+from collections import deque
+import random
+import platform
+import time
+from datetime import time, date, datetime
+from Game import Germini
+from oggetti.win_manager import App
+import pygame
+
+
+def on_newgame():
+    try:
+        pass
+    except Exception as e:
+        print("on_newgame: An error occurred:", e.args[0])
+
+### END OF CLASSES ###
+def main():
+       # create Tk instance
+    #master = Tk()
+
+    # set program title
+    #master.title("M")
+    #master.attributes('-fullscreen', True)    
+     
+    
+    app = App()
+
+    app.set_newgame_callback(on_newgame)
+    #master.protocol("WM_DELETE_WINDOW", app.on_closing)
+    #app.init_imags()
+
+    #btnNewt=Button(master, text="Nuovo", command=app.on_newgame)
+    #btnNewt.pack(side=LEFT, anchor="w")
+
+    # create game instance
+    #minesweeper = Minesweeper(window)
+    # run event loop
+    app.main_loop()
+
+if __name__ == "__main__":
+    #main()
+    pygame.font.init()
+    print(pygame.font.match_font("Bodoni Black"))
