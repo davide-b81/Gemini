@@ -1,16 +1,15 @@
-from enum import Enum
-
+from enum import Enum, IntEnum
 from main.exception_man import ExceptionMan
 
-
-class Seme(Enum):
+class Palo(Enum):
     BASTONI = 0,
     COPPE = 1,
     SPADE = 2,
     DENARI = 3,
     TRIONFO = 4
 
-class CartaId(Enum):
+
+class CartaId(IntEnum):
     '''
     classdocs
     '''
@@ -117,6 +116,25 @@ class CartaId(Enum):
     MONDO_XXXIX = 95
     TROMBA_XL = 96
 
+    def __ge__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value >= other.value
+        return NotImplemented
+
+    def __gt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value > other.value
+        return NotImplemented
+
+    def __le__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value <= other.value
+        return NotImplemented
+
+    def __lt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value < other.value
+        return NotImplemented
 
 cartiglie = [CartaId.DANAR_A, CartaId.DANAR_2, CartaId.DANAR_3, CartaId.DANAR_4, CartaId.DANAR_5, CartaId.DANAR_6,
              CartaId.DANAR_7, CartaId.DANAR_8, CartaId.DANAR_9, CartaId.DANAR_X, CartaId.DANAR_F, CartaId.DANAR_C,
@@ -367,11 +385,11 @@ card_short_name[CartaId.MONDO_XXXIX] = "XXXIX"
 card_short_name[CartaId.TROMBA_XL] = "XL"
 
 seme_name = {}
-seme_name[Seme.DENARI] = "Denari"
-seme_name[Seme.SPADE] = "Spade"
-seme_name[Seme.COPPE] = "Coppe"
-seme_name[Seme.BASTONI] = "Bastoni"
-seme_name[Seme.TRIONFO] = "Tarocco"
+seme_name[Palo.DENARI] = "Denari"
+seme_name[Palo.SPADE] = "Spade"
+seme_name[Palo.COPPE] = "Coppe"
+seme_name[Palo.BASTONI] = "Bastoni"
+seme_name[Palo.TRIONFO] = "Tarocco"
 
 def is_tarocco(cid):
     global tarocco
@@ -395,15 +413,15 @@ def seme_carta(a):
     global denari, spade, coppe, bastoni, tarocco
     try:
         if a in denari:
-            return Seme.DENARI
+            return Palo.DENARI
         elif a in spade:
-            return Seme.SPADE
+            return Palo.SPADE
         elif a in coppe:
-            return Seme.COPPE
+            return Palo.COPPE
         elif a in bastoni:
-            return Seme.BASTONI
+            return Palo.BASTONI
         else:
-            return Seme.TRIONFO
+            return Palo.TRIONFO
     except Exception as e:
         ExceptionMan.manage_exception(str(a), e, True)
     return None
@@ -438,22 +456,22 @@ def get_greater(clist):
         for c in clist:
             if g is None:
                 g = c
-            elif get_seme(c) == get_seme(g):
-                if get_numerale(c) > get_numerale(g):
+            elif get_seme(c.get_id()) == get_seme(g.get_id()):
+                if get_numerale(c.get_id()) > get_numerale(g.get_id()):
                     g = c
-            elif get_seme(c) == Seme.TRIONFO:
+            elif get_seme(c.get_id()) == Palo.TRIONFO:
                 g = c
-            elif get_seme(g) == Seme.TRIONFO:
+            elif get_seme(g.get_id()) == Palo.TRIONFO:
                 pass
-            elif get_numerale(c) == get_numerale(g):
+            elif get_numerale(c.get_id()) == get_numerale(g.get_id()):
                 pass
-            elif get_numerale(c) > get_numerale(g):
+            elif get_numerale(c.get_id()) > get_numerale(g.get_id()):
                 g = c
             else:
                 pass
+        return g
     except Exception as e:
         ExceptionMan.manage_exception("", e, True)
-    return None
 
 def is_sopraventi(cid):
     try:

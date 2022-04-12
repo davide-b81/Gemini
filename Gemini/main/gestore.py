@@ -3,24 +3,29 @@ Created on 18 gen 2022
 
 @author: david
 '''
+import os
+
 from pygame_gui.core import ObjectID
 
 from grafica.sprite_carta import *
 from main.gioco_frame import GiocoFrame
 from game.player import Player
-from main.gioco_manager import GiocoManager
+from main.game_manager import GiocoManager
 from main.globals import *
-from main.exception_man import ExceptionMan
 from oggetti.posizioni import Posizioni, PosizioniId
 from oggetti.stringhe import _
+from main.exception_man import ExceptionMan
+from importlib import resources
 import pygame_gui
+
+from style.style import thfile
 
 
 class Gestore(object):
-    clock = None
+    _clock = None
     _ui_manager = None
     button_new = None
-    button_stop = None
+    _button_termina = None
     button_exit = None
     button_test = None
     button_layout_rect = None
@@ -36,15 +41,16 @@ class Gestore(object):
     _posizioni = None
 
 
-    def __init__(self, ui_manager, screen, debug):
+    def __init__(self, screen, debug):
         try:
             self._globals = Globals()
             self._globals.set_debug(debug)
             self.screen = screen
             self._posizioni = self._globals.init_positions(screen)
-            self._ui_manager = ui_manager
+            self._ui_manager = pygame_gui.UIManager((screen.get_width(), screen.get_height()), thfile)
+            #font = pygame.font.Font("fonts", 35)
             self.init_buttons()
-            self.clock = pygame.time.Clock()
+            self._clock = pygame.time.Clock()
             self._gioco_man = GiocoManager(self._posizioni)
             self._gioco_frame = GiocoFrame(self._ui_manager, screen, self._posizioni, self._gioco_man)
             self._players = []
@@ -57,12 +63,11 @@ class Gestore(object):
             self._gioco_man.set_delegate_fola(self.on_fola)
             self._gioco_man.set_delegate_cade(self.on_cade)
             self._gioco_man.set_delegate_mazziere(self.on_mazziere)
+            self._gioco_man.set_delegete_on_players(self.on_players)
             self._gioco_man.set_delegate_show_carta(self.on_show_carta)
             self._gioco_man.set_delegate_hide_carta(self.on_hide_carta)
             self._gioco_man.set_delegate_set_fronte(self.on_set_fronte)
             self._gioco_man.set_delegate_is_coperta(self.is_coperta)
-            self._gioco_man.set_delegate_show_mazzo(self.on_show_mazzo)
-            self._gioco_man.set_delegate_hide_mazzo(self.on_hide_mazzo)
             self._gioco_man.set_delegate_show_pozzo(self.on_show_pozzo)
             self._gioco_man.set_delegate_hide_pozzo(self.on_hide_pozzo)
             self._gioco_man.set_delegate_show_fola(self.on_show_fola)
@@ -78,12 +83,18 @@ class Gestore(object):
             self._gioco_man.set_delegate_restore(self.on_restore_mazzo)
             self._gioco_man.set_delegate_rotate_pos_carta(self.on_rotate_pos_carta)
             self._gioco_man.set_delegate_set_z(self.on_set_z)
+            self._gioco_man.set_delegate_set_hoverable(self.on_set_hoverable)
             self._gioco_man.set_delegate_is_front(self.is_front)
 
             self._gioco_man.set_delegate_draw_stable(self.get_draw_stable)
             self._gioco_man.set_delegate_frame_show_popup(self.on_popup)
             self._gioco_man.set_delegete_presa(self.on_presa)
-
+            if self._globals.get_quick():
+                self.button_new.disable()
+                self.button_new.visible = False
+                self._button_termina.enable()
+                self._button_termina.visible = True
+                self.on_nuovo("FsmGermini")
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -125,15 +136,15 @@ class Gestore(object):
 
             self.button_stop_layout_rect = pygame.Rect(0, 0, w, h)
             self.button_stop_layout_rect.bottomright = self._posizioni.get_posizione(PosizioniId.RPOS_BUTTON_STOP)
-            self.button_stop = pygame_gui.elements.UIButton(relative_rect=self.button_stop_layout_rect,
-                                                           text=_("Termina"),
-                                                           manager=self._ui_manager,
-                                                           anchors={'left': 'right',
+            self._button_termina = pygame_gui.elements.UIButton(relative_rect=self.button_stop_layout_rect,
+                                                                text=_("Termina"),
+                                                                manager=self._ui_manager,
+                                                                anchors={'left': 'right',
                                                                     'right': 'right',
                                                                     'top': 'bottom',
                                                                     'bottom': 'bottom'},
-                                                            visible=0,
-                                                           object_id=obj)
+                                                                visible=0,
+                                                                object_id=obj)
 
             obj = ObjectID(class_id='@friendly_buttons', object_id='#esci_button')
             self.button_exit_layout_rect = pygame.Rect(0, 0, w, h)
@@ -151,7 +162,16 @@ class Gestore(object):
             ExceptionMan.manage_exception("", e, True)
 
     def event_handler(self, evt):
-        try:
+
+        # if user clicks the close X
+        #if evt.type == pygame.QUIT:
+        #    running = False
+        #if evt.type == pygame.VIDEORESIZE:
+        #    # echo_message("Resize")
+        #    pygame.display.flip()
+
+
+       try:
             if evt.type == pygame.QUIT:
                 self.on_exit(evt)
             if evt.type == pygame_gui.UI_BUTTON_PRESSED:
@@ -166,10 +186,16 @@ class Gestore(object):
             if evt.type == pygame.MOUSEMOTION:
                 if self._globals.get_debug():
                     if self._gioco_man.is_running() == False:
-                        self.on_nuovo(evt)
-            self._gioco_frame.on_event(evt)
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
+                        self.on_nuovo("FsmGermini")
+            if self.get_draw_stable():
+                self._gioco_frame.on_event(evt)
+
+            # Consume event
+            self._ui_manager.process_events(evt)
+            #if running:
+            self.on_update()
+       except Exception as e:
+           ExceptionMan.manage_exception("", e, True)
 
     def on_r(self, evt):
         echo_message("Sort event")
@@ -179,7 +205,6 @@ class Gestore(object):
             self.button_exit.update_containing_rect_position()
             self.button_new.update_containing_rect_position()
             self._gioco_frame.on_resize(evt)
-            #echo_message("Resize event")
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -190,25 +215,25 @@ class Gestore(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def on_update(self, window_surface):
+    def on_update(self):
         try:
-            if self._running and self.clock != None:
-                time_delta = self.clock.tick(60) / 1000.0
-                self._gioco_frame.update_handler(window_surface, time_delta)
-                self._gioco_man.update_gioco(window_surface)
+            if self._running and self._clock != None:
+                time_delta = self._clock.tick(25) / 1000.0
+                self._gioco_frame.update_handler(self.screen, time_delta)
+                self._gioco_man.update_gioco(self.screen)
                 self._ui_manager.update(time_delta)
-                self._ui_manager.draw_ui(window_surface)
+                self._ui_manager.draw_ui(self.screen)
                 self._draw_stable = self._gioco_frame.get_stable()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
         return self._running
 
-    def add_player(self, name, pos):
+    def add_player(self, name, real=False):
         try:
-            player = Player(name, pos)
+            player = Player(name)
+            player.set_real(real)
             self._players.append(player)
-
             player.set_delegate_sort(self.on_sort)
             player.set_delegate_dichiara(self.on_dichiara)
             player.set_delegate_scopri(self.on_scopri_tutte)
@@ -220,20 +245,24 @@ class Gestore(object):
     '''
     EVENT HANDLERs
     '''
-    def on_nuovo(self, evt):
+    def on_nuovo(self, game="FsmGermini"):
         try:
-            self.add_player("Davide", "Sud")
-            self.add_player("Tizio", "Ovest")
-            self.add_player("Caio", "Nord")
-            self.add_player("Sempronio", "Est")
-            self._gioco_frame.gioco_man.inizia_gioco(self._players, "FsmGermini")
+            self._players.clear()
+            """
+            (). Le minchiate vengono giocate in quattro.
+            """
+            self.add_player("Davide", True)
+            self.add_player("Tizio")
+            self.add_player("Caio")
+            self.add_player("Sempronio")
+            self._gioco_frame.inizia_gioco(self._players, game)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def on_termina(self, evt):
         try:
-            self._gioco_frame.gioco_man.termina_gioco()
-            self._running = False
+            self._players.clear()
+            self._gioco_frame.on_termina()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -258,17 +287,16 @@ class Gestore(object):
                     self.on_exit(evt)
                 elif evt.ui_element == self.button_new:
                     self.button_new.disable()
-                    self.button_new.visible=False
-                    self.button_stop.enable()
-                    self.button_stop.visible=True
-                    self.on_nuovo(evt)
-                elif evt.ui_element == self.button_stop:
-                    self.button_stop.disable()
-                    self.button_stop.visible=False
+                    self.button_new.visible = False
+                    self._button_termina.enable()
+                    self._button_termina.visible = True
+                    self.on_nuovo()
+                elif evt.ui_element == self._button_termina:
+                    self._button_termina.disable()
+                    self._button_termina.visible = False
                     self.button_new.enable()
-                    self.button_new.visible=True
-                    self.on_stop()
-
+                    self.button_new.visible = True
+                    self.on_termina(evt)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -290,7 +318,7 @@ class Gestore(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def on_move(self, c, pos, inst=False):
+    def on_move(self, c, pos, inst):
         try:
             self._gioco_frame.on_move(c, pos, inst)
         except Exception as e:
@@ -302,14 +330,22 @@ class Gestore(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def on_set_hoverable(self, c, h):
+        try:
+            self._gioco_frame.on_set_hoverable(c, h)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def is_front(self, c):
         try:
             return self._gioco_frame.is_front(c)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def on_show_carta(self, c):
+    def on_show_carta(self, c, pos=None):
         try:
+            if pos is not None:
+                self._gioco_frame.on_move(c, pos, True)
             self._gioco_frame.mostra_carta(c)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -320,31 +356,18 @@ class Gestore(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def on_rotate_pos_carta(self, c, pos, inst=True):
+    def on_rotate_pos_carta(self, c, pos, inst):
         try:
             if pos == POSTAZIONE_NORD:
-                self._gioco_frame.ruota_carta(c, DEG_FLIP)
+                self._gioco_frame.ruota_carta(c, DEG_FLIP, self._globals.get_instant())
             elif pos == POSTAZIONE_OVEST:
-                self._gioco_frame.ruota_carta(c, DEG_CLOC_RECT)
+                self._gioco_frame.ruota_carta(c, DEG_CLOC_RECT, self._globals.get_instant())
             elif pos == POSTAZIONE_EST:
-                self._gioco_frame.ruota_carta(c, DEG_ANTC_RECT)
+                self._gioco_frame.ruota_carta(c, DEG_ANTC_RECT, self._globals.get_instant())
             elif pos == POSTAZIONE_SUD:
-                self._gioco_frame.ruota_carta(c, DEG_NORMAL)
+                self._gioco_frame.ruota_carta(c, DEG_NORMAL, self._globals.get_instant())
             else:
-                self._gioco_frame.ruota_carta(c, DEG_NORMAL)
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def on_show_mazzo(self, ca, pos):
-        try:
-            print("Mazzo in posizione " + pos)
-            self._gioco_frame.mostra_mazzo(ca, pos)
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def on_hide_mazzo(self, ca):
-        try:
-            self._gioco_frame.nascondi_mazzo(ca)
+                self._gioco_frame.ruota_carta(c, DEG_NORMAL, self._globals.get_instant())
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -384,9 +407,9 @@ class Gestore(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def on_set_fronte(self, c, coperta=FRONTE_COPERTA):
+    def on_set_fronte(self, c, coperta, inst):
         try:
-            self._gioco_frame.set_fronte(c, coperta)
+            self._gioco_frame.set_fronte(c, coperta, inst)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -402,12 +425,6 @@ class Gestore(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def on_stop(self):
-        try:
-            self._gioco_frame.on_restore()
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
     def on_sort(self, evt):
         # TODO: riordinare gli sprite
         self._gioco_frame.on_sort()
@@ -420,7 +437,7 @@ class Gestore(object):
 
     def on_show_mano(self, coord, ccman):
         try:
-            self._gioco_frame.on_show_carte_mano(coord, ccman)
+            self._gioco_frame.on_show_carte_mano(coord, ccman, self._globals.get_instant())
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -448,7 +465,7 @@ class Gestore(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def on_presa(self, player, cc):
+    def on_presa(self):
         try:
             self._gioco_frame.on_update_punteggi()
             self._gioco_man.update_carte()
@@ -457,7 +474,7 @@ class Gestore(object):
 
     def on_popup(self, txt, visible):
         try:
-            self._gioco_frame.show_popup(txt, visible)
+            return self._gioco_frame.show_popup(txt, visible)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -471,7 +488,8 @@ class Gestore(object):
 
     def on_redraw(self):
         try:
-            self._gioco_frame.on_update_punteggi() # TODO Eliminare, serve per stampare le carte in mano
+            # TODO Eliminare, serve per stampare le carte in mano
+            self._gioco_frame.on_update_punteggi()
             self._gioco_frame.on_redraw()
         except Exception as e:
                 ExceptionMan.manage_exception("", e, True)
@@ -491,6 +509,13 @@ class Gestore(object):
     def on_turno(self, ppos):
         try:
             self._gioco_frame.update_turno(ppos)
+        except Exception as e:
+                ExceptionMan.manage_exception("", e, True)
+
+    def on_players(self):
+        try:
+            for p in self._gioco_man.get_giocatori():
+                self._gioco_frame.set_player_labels(p)
         except Exception as e:
                 ExceptionMan.manage_exception("", e, True)
 

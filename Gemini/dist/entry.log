@@ -2,3 +2,68 @@ CRITICAL:root: Exception in ModuleNotFoundError.on_init(entry.py, line 63): No m
 CRITICAL:root: Exception in ModuleNotFoundError.on_init(entry.py, line 62): No module named 'style'
 CRITICAL:root: Exception in ModuleNotFoundError.on_init(entry.py, line 62): No module named 'style'
 CRITICAL:root: Exception in ModuleNotFoundError.on_init(entry.py, line 62): No module named 'style'
+CRITICAL:root: Exception in FileNotFoundError.on_init(entry.py, line 62): B:\Users\david\source\git\Gemini\dist\entry.exe/style/theme.json
+CRITICAL:root: Exception in FileNotFoundError.on_init(entry.py, line 62): B:\Users\david\source\git\Gemini\dist\entry.exe/style/theme.json
+CRITICAL:root: Exception in FileNotFoundError.on_init(entry.py, line 62): B:\Users\david\source\git\Gemini\dist\entry.exe/style/theme.json
+CRITICAL:root: Exception in FileNotFoundError.on_init(entry.py, line 62): B:\Users\david\source\git\Gemini\dist\entry.exe/style/theme.json
+CRITICAL:root: Exception in FileNotFoundError.on_init(entry.py, line 62): B:\Users\david\source\git\Gemini\dist\entry.exe/style/theme.json
+CRITICAL:root: Exception in FileNotFoundError.on_init(entry.py, line 62): B:\Users\david\source\git\Gemini\dist\entry.exe/style/theme.json
+CRITICAL:root: Exception in FileNotFoundError.on_init(entry.py, line 62): B:\Users\david\source\git\Gemini\dist\entry.exe/style/theme.json
+CRITICAL:root: Exception in FileNotFoundError.on_init(entry.py, line 65): B:\Users\david\source\git\Gemini\dist\entry.exe/style/theme.json
+Traceback (most recent call last):
+  File "entry.py", line 8, in <module>
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "zipextimporter.pyc", line 168, in exec_module
+  File "main\gestore.pyc", line 21, in <module>
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "zipextimporter.pyc", line 168, in exec_module
+  File "style\style.pyc", line 7, in <module>
+  File "importlib\resources.pyc", line 121, in path
+  File "importlib\resources.pyc", line 130, in _path_from_reader
+  File "importlib\resources.pyc", line 141, in _path_from_open_resource
+  File "importlib\readers.pyc", line 35, in open_resource
+  File "importlib\abc.pyc", line 433, in open_resource
+  File "zipfile.pyc", line 2331, in open
+FileNotFoundError: B:\Users\david\source\git\Gemini\dist\entry.exe/style/theme.json
+Traceback (most recent call last):
+  File "entry.py", line 8, in <module>
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "zipextimporter.pyc", line 168, in exec_module
+  File "main\gestore.pyc", line 21, in <module>
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "zipextimporter.pyc", line 168, in exec_module
+  File "style\style.pyc", line 7, in <module>
+  File "importlib\resources.pyc", line 121, in path
+  File "importlib\resources.pyc", line 130, in _path_from_reader
+  File "importlib\resources.pyc", line 141, in _path_from_open_resource
+  File "importlib\readers.pyc", line 35, in open_resource
+  File "importlib\abc.pyc", line 433, in open_resource
+  File "zipfile.pyc", line 2331, in open
+FileNotFoundError: B:\Users\david\source\git\Gemini\dist\entry.exe/style/theme.json
+Traceback (most recent call last):
+  File "entry.py", line 8, in <module>
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "zipextimporter.pyc", line 168, in exec_module
+  File "main\gestore.pyc", line 21, in <module>
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "zipextimporter.pyc", line 168, in exec_module
+  File "style\style.pyc", line 7, in <module>
+  File "importlib\resources.pyc", line 121, in path
+  File "importlib\resources.pyc", line 130, in _path_from_reader
+  File "importlib\resources.pyc", line 141, in _path_from_open_resource
+  File "importlib\readers.pyc", line 35, in open_resource
+  File "importlib\abc.pyc", line 433, in open_resource
+  File "zipfile.pyc", line 2331, in open
+FileNotFoundError: B:\Users\david\source\git\Gemini\dist\entry.exe/style/theme.json

@@ -41,6 +41,7 @@ class Carta(object):
         return str(self.id)
 
     def get_id(self):
+        assert self.id is not None
         return self.id
 
     def get_short_name(self):

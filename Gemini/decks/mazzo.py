@@ -11,7 +11,6 @@ from main.exception_man import ExceptionMan
 class Mazzo(object):
 
     _carte = None
-    _pos = None
 
     '''
     classdocs

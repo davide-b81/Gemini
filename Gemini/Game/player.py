@@ -6,18 +6,16 @@ Created on 31 dic 2021
 import numpy
 from main.globals import *
 from decks.carta_id import *
-from game.germini.punteggi import Versicole, punti_ger
+from game.germini.punteggi import carte_conto
 from main.exception_man import ExceptionMan
 
 class Player(object):
     # Cards enum id
     _cards = None
-    cards_mano = None
-    cards_mostra = None
-    score = None
+    _cards_mangiate = None
+    _n_da_scartare = None
     _position = None
     _name = None
-    versicole = None
     _punti_mano = None
     _punti_totali = None
     _caduto = None
@@ -26,6 +24,7 @@ class Player(object):
     _delegate_scopri = None
     _delegate_on_punti = None
     _delegate_append_html_text = None
+    _simulated = None
 
     '''
     classdocs
@@ -38,13 +37,12 @@ class Player(object):
             '''
             self._name = name
             self._position = pos
-            self.cards_mano = []
-            self.cards_mangiate = []
-            self.versicole = Versicole(name)
+            self._cards_mangiate = []
             self._punti_mano = 0
             self._punti_totali = 0
+            self._n_da_scartare = 0
             self._caduto = False
-            self.versicole.set_delegate_on_dichiara(self.on_versicola)
+            self._simulated = True
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -63,9 +61,31 @@ class Player(object):
     def set_delegate_on_punti(self, f):
         self._delegate_on_punti = f
 
+    def set_position(self, ppos):
+        try:
+            self._position = ppos
+            if ppos is not None:
+                print(str(self) + " => " + ppos)
+            else:
+                print(str(self) + " reset posizione")
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def get_position(self):
         try:
             return self._position
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_simulated(self):
+        try:
+            return self._simulated
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def set_real(self, real=True):
+        try:
+            self._simulated = not real
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -78,25 +98,9 @@ class Player(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def update_mano(self):
+    def dichiara(self, ca):
         try:
-            self._delegate_sort(self)
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def assegna_carta(self, c):
-        try:
-            if c is None:
-                raise Exception("Carta non specificata")
-            self.cards_mano.append(c)
-            echo_message("\t - " + str(c))
-            self.update_mano()
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def dichiara(self):
-        try:
-            self.versicole.gestisci_carte(self.cards_mano)
+            self.versicole.gestisci_carte(ca)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -112,24 +116,6 @@ class Player(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def is_caduto(self):
-        try:
-            for c in self.cards_mano:
-                if c.get_id() in tarocco:
-                    self._caduto = False
-                    return self._caduto
-
-            for c in self.cards_mano:
-                if c.get_id() in punti_ger:
-                    self._caduto = False
-                    return self._caduto
-
-            self._caduto = True
-            return self._caduto
-
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
     def giocatore_cade(self):
         try:
             if self._caduto == False:
@@ -140,8 +126,6 @@ class Player(object):
 
     def restore_giocatore(self):
         try:
-            #self.cards.clear()
-            self.cards_mano.clear()
             self._punti_mano = 0
             self._caduto = False
         except Exception as e:
@@ -150,15 +134,14 @@ class Player(object):
     def mangia_carta(self, c, pts):
         try:
             if c is not None:
-                self.cards_mangiate.append(c)
+                self._cards_mangiate.append(c)
                 self._punti_mano = self._punti_mano + pts
-                #self._delegate_append_html_text("Punti " + str(self._name) + ": " + str(self._punti_mano) + " (+" + str(pts) + ")")
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def somma_punti(self, pts):
-        self._punti_mano = self._punti_mano + pts
-        return self._punti_mano
+    #def somma_punti(self, pts):
+    #    self._punti_mano = self._punti_mano + pts
+    #    return self._punti_mano
 
     def get_punti_mano(self):
         return self._punti_mano
@@ -167,22 +150,16 @@ class Player(object):
         return self._punti_totali
 
     def on_fine_mano(self):
-        self._punti_mano = 0
         self._punti_totali = self._punti_totali + self._punti_mano
+        self._punti_mano = 0
         return self._punti_totali
 
     def on_cade(self):
             pass
 
-    def get_carte_mano(self):
-        try:
-            return self.cards_mano
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
     def get_carte_mangiate(self):
         try:
-            return self.cards_mangiate
+            return self._cards_mangiate
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -195,13 +172,18 @@ class Player(object):
 
     def reset(self):
         try:
-            self.cards_mano.clear()
-            self.cards_mangiate.clear()
-            self.versicole.reset()
-            self._punti_mano = 0
+            self._cards_mangiate.clear()
             self._caduto = False
+            self._punti_mano = 0
+            self._n_da_scartare = 0
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def __str__(self):
         return self._name
+
+    def __eq__(self, other):
+        if (other):
+            return str(self) == str(other)
+        return False
+

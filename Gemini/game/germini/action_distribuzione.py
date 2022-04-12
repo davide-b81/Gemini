@@ -8,7 +8,9 @@ from time import monotonic
 from decks.carta_id import is_cartiglia
 from game.germini.action import Action
 from main.exception_man import ExceptionMan
-from main.globals import echo_message
+from main.globals import echo_message, FRONTE_SCOPERTA
+from oggetti.posizioni import DeckId
+
 '''
 (3). Il mazziere distribuisce ora le carte nel seguente modo: prima dieci carte ciascuno partendo dal giocatore
 seduto alla sua destra, quindi altre dieci ciascuno ed infine un'ultima carta scoperta agli altri tre giocatori.
@@ -21,16 +23,17 @@ class ActionDistribuzione(Action):
     ACTSTATUS_SHOWULTIMA = "ACTSTATUS_SHOWULTIMA"
 
     def __init__(self, fsm):
-        super().__init__(fsm)
-        self._t_action = monotonic()
+        try:
+            super().__init__(fsm)
+            self._t_action = monotonic()
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
     def start(self):
         try:
             # Posiziona mazzo e lo rende visibile
             echo_message(_("ActionDistribuzione - Distribuzione delle carte"))
-            #self._fsm.giocatore_turno = self._fsm.game_man.get_next_player(self._fsm.general_man.get_mazziere())
-            self._status = self.ACTSTATUS_DISTRIBUZIONE_I
-            pass
+            self._newsts = self.ACTSTATUS_DISTRIBUZIONE_I
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -38,7 +41,7 @@ class ActionDistribuzione(Action):
         try:
             self.mostrata = None
             self._fsm.distribuzione(10, True)
-            self._status = self.ACTSTATUS_DISTRIBUZIONE_II
+            self._newsts = self.ACTSTATUS_DISTRIBUZIONE_II
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -46,14 +49,20 @@ class ActionDistribuzione(Action):
         try:
             self.mostrata = None
             self._fsm.distribuzione(10, True)
-            self._status = self.ACTSTATUS_DISTRIBUZIONE_ULTIMA
+            self._newsts = self.ACTSTATUS_DISTRIBUZIONE_ULTIMA
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def distribuzione_ultima(self):
         try:
-            self._fsm.distribuzione(1, False)
-            self._status = self.ACTSTATUS_SHOWULTIMA
+            for player in self._fsm.get_giocatori():
+                c = self._fsm.pesca_dal_mazzo(DeckId.DECK_MAZZO)
+                if c is not None:
+                    self._fsm.marca_punti(c, player)
+                    self._fsm.consegna_carta(c, FRONTE_SCOPERTA, player)
+                else:
+                    raise NotImplemented("Condizione mazziere senza ultima carta")
+                self._newsts = self.ACTSTATUS_SHOWULTIMA
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -72,7 +81,7 @@ class ActionDistribuzione(Action):
             elif self._status == self.ACTSTATUS_DISTRIBUZIONE_ULTIMA:
                 self.distribuzione_ultima()
             elif self._status == self.ACTSTATUS_SHOWULTIMA:
-                self._status = self.ACTSTATUS_END
+                self._newsts = self.ACTSTATUS_END
             else:
                 pass
         except Exception as e:

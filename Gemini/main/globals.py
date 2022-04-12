@@ -4,6 +4,7 @@ Created on 23 gen 2022
 @author: david
 '''
 import threading, queue
+import warnings
 
 from oggetti.posizioni import Posizioni
 
@@ -43,7 +44,6 @@ def check_locals(dic):
         if value is None:
             raise Exception("Argument " + key + " = None")
 
-
 # Singleton decorator
 def singleton(class_):
     instances = {}
@@ -67,7 +67,25 @@ class Globals(object):
         self._debug = dbg
 
     def get_debug(self):
-        return  self._debug
+        return self._debug
+
+    def get_quick(self):
+        return False
+
+    def get_autoclose(self):
+        return False
+
+    def get_demo_mode(self):
+        return True
+
+    def controlla_ultima(self):
+        return False
+
+    def get_instant(self):
+        return True
+
+    def get_uncover(self):
+        return True
 
     def init_positions(self, screen):
         self._posizioni = Posizioni(screen)

@@ -23,6 +23,7 @@ class MySprite(pygame.sprite.Sprite):
     _name = None
 
     _z_index = None
+    _hoverable = None
     _img_dorso = None
     _img_fronte = None
 
@@ -52,6 +53,9 @@ class MySprite(pygame.sprite.Sprite):
             Constructor
             '''
             pygame.sprite.Sprite.__init__(self)
+
+            self._z_index = 0
+            self._hoverable = False
             self._name = name
             self._stable_draw = False
             self.reset()
@@ -95,7 +99,7 @@ class MySprite(pygame.sprite.Sprite):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_lato(self, coperta, inst=True):
+    def set_lato(self, coperta, inst):
         try:
             if coperta:
                 self._asse_dest = DEG_SIDE_BACK
@@ -133,16 +137,17 @@ class MySprite(pygame.sprite.Sprite):
 
     def move_to(self, x, y):
         try:
-            self._pos = (x, y)
-            self._pos_dest = (x, y)
+            self._pos = (round(x), round(y))
+            self._pos_dest = (round(x), round(y))
             self.rect = self.image.get_rect()
             self.rect.x = self._pos[0]
             self.rect.y = self._pos[1]
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_position(self, pos, inst=False):
+    def set_position(self, pos, inst):
         try:
+            pos = (round(pos[0]), round(pos[1]))
             if inst and self._pos_dest != pos:
                 self._pos_dest = pos
                 self._pos = pos
@@ -185,11 +190,20 @@ class MySprite(pygame.sprite.Sprite):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_z(self, z=0):
+    def get_z(self):
         try:
-            self._z_index = z
+            return self._z_index
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+
+    def get_hoverable(self, h=False):
+        return self._hoverable
+
+    def enable_hoover(self, h=False):
+        self._hoverable = h
+
+    def set_z(self, z=0):
+        self._z_index = z
 
     def get_rect(self):
         try:
@@ -197,11 +211,6 @@ class MySprite(pygame.sprite.Sprite):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def get_z_index(self):
-        try:
-            return self._z_index
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
 
     def get_collide(self, mouse):
         try:
@@ -211,7 +220,6 @@ class MySprite(pygame.sprite.Sprite):
 
     def reset(self):
         try:
-            #print("Sprite reset")
             self._visible = False
             self._pos_dest = (0, 0)
             self._pos = (0, 0)
@@ -221,16 +229,27 @@ class MySprite(pygame.sprite.Sprite):
             self._asse = DEG_SIDE_BACK
             self._asse_dest = DEG_SIDE_BACK
             self._stable_draw = False
+            self._hoverable = False
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_translated_coord(self, dst, cur):
+        try:
+            if dst != cur:
+                if abs(dst - cur) > self.MOVE_STEP:
+                    if dst > cur:
+                        cur = cur + self.MOVE_STEP
+                    else:
+                        cur = cur - self.MOVE_STEP
+                else:
+                    cur = dst
+            return cur
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def translate(self):
         try:
-            if self._visible:
-                if self._pos_dest is not None and self._pos != self._pos_dest:
-                    self._pos = (min(self._pos_dest[0], self._pos[0] + self.MOVE_STEP), min(self._pos_dest[1], self._pos[1] + self.MOVE_STEP))
-            else:
-                self._pos = self._pos_dest
+            self._pos = (self.get_translated_coord(self._pos_dest[0], self._pos[0]), self.get_translated_coord(self._pos_dest[1], self._pos[1]))
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 

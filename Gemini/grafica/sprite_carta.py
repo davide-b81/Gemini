@@ -3,6 +3,7 @@ Created on 6 gen 2022
 
 @author: david
 '''
+from decks.carta_id import CartaId
 from grafica.my_sprite import MySprite
 from main.globals import *
 from cmath import cos
@@ -27,29 +28,34 @@ class SpriteCarta(MySprite):
     MOVE_STEP = 18
     REFRESH_PERIOD = 0.02
 
+    _cid = None
     img_back = None
     img_front = None
     img_back_orig = None
     img_front_orig = None
 
-    def __init__(self, name, img, imgback=None):
-        super().__init__(name, img)
+    def __init__(self, cid : CartaId, img, imgback=None):
         '''
         Constructor
         '''
-        self.img_front_orig = img.convert()
-        self.img_back_orig = imgback.convert()
-        self.img_front = self.img_front_orig
-        self.img_back = self.img_back_orig
-        self.image = self.img_back
-        self._size = self.image.get_size()
-        self.rect.center = self._pos
+        try:
+            super().__init__(str(cid), img)
+            self._hoverable = True
+            self.img_front_orig = img.convert()
+            self.img_back_orig = imgback.convert()
+            self.img_front = self.img_front_orig
+            self.img_back = self.img_back_orig
+            self.image = self.img_back
+            self._size = self.image.get_size()
+            self.rect.center = self._pos
+            self._cid = cid
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
     def set_image_current(self, image):
         try:
-            #if self.image != image:
-                assert image is not None
-                self.image = image
+            assert image is not None
+            self.image = image
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -60,6 +66,9 @@ class SpriteCarta(MySprite):
             return True
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+
+    def get_cid(self):
+        return self._cid
 
     def copri(self):
         try:

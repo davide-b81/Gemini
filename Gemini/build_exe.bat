@@ -1,1 +1,1 @@
-setup.py py2exe
+setup.py py2exe > result.log

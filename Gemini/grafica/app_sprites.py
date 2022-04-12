@@ -8,6 +8,7 @@ import traceback
 import pygame.sprite
 
 from grafica.my_sprite import MySprite
+from grafica.sprite_carta import SpriteCarta
 from main.globals import *
 from oggetti.posizioni import *
 from main.exception_man import ExceptionMan
@@ -23,7 +24,7 @@ def reset_sprite(spr):
     except Exception as e:
         ExceptionMan.manage_exception("", e, True)
 
-class Sprites(object):
+class SpriteManager(object):
     '''
     classdocs
     '''
@@ -34,7 +35,9 @@ class Sprites(object):
     img_man = None
     pos_man = None
     _hovered_sprite = None
-    delegate_click = None
+    _colliding_sprite = None
+    _delegate_click = None
+    _delegate_carta_click = None
     _stable_draw = None
     _evt_queue = None
     _extern_sprites = None
@@ -52,6 +55,8 @@ class Sprites(object):
             self.visible_dic = {}
             self._extern_sprites = {}
             self._stable_draw = False
+            self._colliding_sprite = None
+            self._hovered_sprite = None
             self.set_token_info(self.img_man.get_image_tokenM(), TOKEN_MANO)
             self.set_token_info(self.img_man.get_image_tokenD(), TOKEN_DEAL)
             self.set_token_info(self.img_man.get_image_tokenF(), TOKEN_FOLA)
@@ -66,16 +71,15 @@ class Sprites(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_delegate_click(self, foo):
-        try:
-            self.delegate_click = foo
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
+    def set_delegate_click(self, f):
+        self._delegate_click = f
+
+    def set_delegate_carta_click(self, f):
+        self._delegate_carta_click = f
 
     def add_sprite(self, name, spr):
         try:
             spr.set_visible(False)
-            spr.set_z(len(self.all_sprites))
             self.all_sprites.add(spr)
             self.sprite_dic[name] = spr
             self.update_sprite_list()
@@ -107,16 +111,26 @@ class Sprites(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_lato(self, cid, coperta=FRONTE_COPERTA, inst=True):
+    def enable_hoover(self, cid, h):
         try:
+            self.sprite_dic[str(cid)].enable_hoover(h)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def set_lato(self, cid, coperta, inst):
+        try:
+            if self._globals.get_uncover():
+                coperta = False
+            self._hovered_sprite = None
             if coperta:
                 return self.sprite_dic[str(cid)].set_lato(coperta, inst)
             else:
                 return self.sprite_dic[str(cid)].set_lato(coperta, inst)
+
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_angolo(self, cid, deg=0, inst=True):
+    def set_angolo(self, cid, deg, inst):
         try:
             return self.sprite_dic[str(cid)].set_angolo(deg, inst)
         except Exception as e:
@@ -134,7 +148,7 @@ class Sprites(object):
         except Exception as e:
             ExceptionMan.manage_exception("Error.", e, True)
 
-    def set_pos_carta(self, cid, pos=None, instant=False):
+    def set_pos_carta(self, cid, pos, instant):
         try:
             self.sprite_dic[str(cid)].set_position(pos, instant)
         except Exception as e:
@@ -163,21 +177,20 @@ class Sprites(object):
                     self._extern_sprites[name].set_visible(visible)
                     if visible:
                         if name == TOKEN_DEAL:
-                            (x, y) = self.pos_man.get_pos_elemento(ELEMENTO_TOKEN_MAZ, ppos)
-                            #print("Move to " + str(x) + " " + str(y))
+                            (x, y) = self.pos_man.get_pos_elemento(ElementoId.ELEMENTO_TOKEN_MAZ, ppos)
                         elif name == TOKEN_FOLA:
-                            (x, y) = self.pos_man.get_pos_elemento(ELEMENTO_TOKEN_FOL, ppos)
+                            (x, y) = self.pos_man.get_pos_elemento(ElementoId.ELEMENTO_TOKEN_FOL, ppos)
                         elif name == TOKEN_CADE:
-                            (x, y) = self.pos_man.get_pos_elemento(ELEMENTO_TOKEN_CAD, ppos)
+                            (x, y) = self.pos_man.get_pos_elemento(ElementoId.ELEMENTO_TOKEN_CAD, ppos)
                         elif name == TOKEN_MANO:
-                            (x, y) = self.pos_man.get_pos_elemento(ELEMENTO_TOKEN_TUR, ppos)
+                            (x, y) = self.pos_man.get_pos_elemento(ElementoId.ELEMENTO_TOKEN_TUR, ppos)
                         else:
-                            (x, y) = (1030, 1000)
+                            (x, y) = (0, 0)
                         self._extern_sprites[name].move_to(x, y)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def show_carte_tavola(self, coord, cctav):
+    def show_carte_tavola(self, coord, cctav, inst):
         try:
             if cctav != None:
                 if len(cctav) != 0:
@@ -185,7 +198,7 @@ class Sprites(object):
                         ppos = self.pos_man.get_area_tavola(coord)
 
                         self.sprite_dic[ca.get_name()].set_z(0)
-                        self.sprite_dic[ca.get_name()].set_position(ppos)
+                        self.sprite_dic[ca.get_name()].set_position(ppos, inst)
                         self.sprite_dic[ca.get_name()].scopri()
                         self.sprite_dic[ca.get_name()].mostra()
         except Exception as e:
@@ -206,34 +219,37 @@ class Sprites(object):
             list = []
             self.all_sprites.empty()
 
+            for key, spr in self.sprite_dic.items():
+                if spr.get_visible():
+                    if str(spr) != str(self._hovered_sprite):
+                        list.append(spr)
+                    else:
+                        spr.set_z(0)
+                        list.insert(0, spr)
+
             for key, spr in self._extern_sprites.items():
                 if spr.get_visible():
                     list.append(spr)
 
-            for key, spr in self.sprite_dic.items():
-                if spr.get_visible():
-                    if spr.get_visible() and spr.is_front() and str(self._hovered_sprite) == str(spr):
-                        pass
-                    else:
-                        list.append(spr)
             # TODO: Ordinare solo se cambia
-            list_sorted = sorted(list, key=lambda x: x.get_z_index(), reverse=True)
+            list_sorted = sorted(list, key=lambda x: x.get_z(), reverse=True)
+
             for spr in list_sorted:
                 spr.update()
+
             self.all_sprites.add(list_sorted)
-            if self._hovered_sprite is not None:
-                self.all_sprites.add(self._hovered_sprite)
+
             self.update_areas()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def show_carte_mano(self, coord, ccman):
+    def show_carte_mano(self, coord, ccman, inst):
         ic = 0
         jc = 0
-        z = 0
 
         try:
             if ccman != None:
+                z = 0
                 for ca in ccman:
                     if ca is not None:
                         spr = self.sprite_dic[ca.get_name()]
@@ -263,12 +279,12 @@ class Sprites(object):
                         # ut.sort(key=lambda x: x.count, reverse=True)
 '''
                         spr.set_visible(True)
-                        spr.set_position(pos)
-                        spr.set_z(z)
+                        spr.set_position(pos, inst)
+                        spr.set_z(len(ccman) - z)
                         z = z + 1
 
                     # Sort by z-index (overlapped correctly)
-                    #list = sorted(list, key=lambda x: x.get_z_index(), reverse=False)
+                    #list = sorted(list, key=lambda x: x.get_z(), reverse=False)
                     #self.all_sprites.add(list)
 
         except Exception as e:
@@ -282,27 +298,6 @@ class Sprites(object):
                         spr = self.sprite_dic[c.get_name()]
                         spr.set_visible(False)
                         spr.nascondi()
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def show_mazzo(self, ccmazz, plpos = None):
-        try:
-            i = 0
-            for c in ccmazz:
-                spr = self.sprite_dic[c.get_name()]
-                ppos = self.pos_man.get_area_mazzo(plpos)
-                (x, y) = (ppos[0] + i, ppos[1])
-                spr.set_position((x, y))
-                spr.set_z(i)
-                spr.set_visible(True)
-                i = i + 1
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def hide_mazzo(self, ccmazz):
-        try:
-            for ca in ccmazz:
-                self.sprite_dic[ca.get_name()].set_visible(False)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -369,31 +364,26 @@ class Sprites(object):
 
     def update_areas(self):
         try:
-            hovered = None
-            flag = False
             mouse = pygame.mouse.get_pos()
             z = 100
 
             for spr in self.all_sprites.sprites():
-                if spr.get_z_index() < z:
-                    if spr.get_visible():
-                        if spr.get_collide(mouse):
-                            flag = True
-                            z = spr.get_z_index()
-                            hovered = spr
-            if not flag:
-                self._hovered_sprite = None
-            elif str(self._hovered_sprite) != str(hovered):
-                self._hovered_sprite = hovered
+                if spr.get_visible() and spr.get_z() < z:
+                    if spr.get_collide(mouse):
+                        self._colliding_sprite = spr
+                        if spr.get_hoverable():
+                            z = spr.get_z()
+                            self._hovered_sprite = spr
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def on_event(self, e):
         try:
             if e.type == pygame.MOUSEBUTTONUP and e.button == LEFT_CLICK:
-                if self.delegate_click is not None and self._hovered_sprite is not None:
-                    self.delegate_click(self._hovered_sprite)
-            if e.type == pygame.MOUSEMOTION:
-                    self.update_areas()
+                if isinstance(self._colliding_sprite, SpriteCarta):
+                    self._delegate_carta_click(self._colliding_sprite.get_cid())
+                self._delegate_click()
+            elif e.type == pygame.MOUSEMOTION:
+                self.update_areas()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)

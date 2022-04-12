@@ -3,17 +3,25 @@
 #  @author: david
 #  '''
 from abc import ABCMeta, abstractmethod
+from threading import Timer
 from time import monotonic
 import random
+
+import pygame
+
+from main.globals import echo_message, Globals
 from main.exception_man import ExceptionMan
-from main.globals import echo_message
 
 
 class Action(metaclass=ABCMeta):
     _status = None
+    _newsts = None
     _fsm = None
+    _popup_box = None
+    _tout_popup = None
     _wait_popup = None
     _wait_delay = None
+    _popup_hover = None
 
     ACTSTATUS_DEFAULT = "ACTSTATUS_DEFAULT"
     ACTSTATUS_START = "ACTSTATUS_START"
@@ -22,9 +30,12 @@ class Action(metaclass=ABCMeta):
 
     def __init__(self, fsm):
         self._status = self.ACTSTATUS_START
+        self._newsts = self.ACTSTATUS_START
         self._fsm = fsm
         self._wait_popup = False
+        self._popup_hover = False
         self._wait_delay = monotonic()
+        self._globals = Globals()
 
     def __str__(self):
         return type(self).__name__
@@ -45,6 +56,19 @@ class Action(metaclass=ABCMeta):
     def on_carta_click(self, cid):
         pass
 
+    def termina(self):
+        try:
+            self.end()
+            if self._tout_popup is not None:
+                self._tout_popup.cancel()
+                self._tout_popup = None
+            if self._wait_popup is not None:
+                self._fsm.on_hide_popup()
+                self._popup_box = None
+                self._wait_popup = False
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def get_status(self):
         try:
             return self._status
@@ -58,17 +82,26 @@ class Action(metaclass=ABCMeta):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def reset(self):
+        try:
+            self._status = self.ACTSTATUS_START
+            self._newsts = self.ACTSTATUS_START
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def finished(self):
         try:
             if self._wait_popup or self._wait_delay > monotonic():
                 return False
-            return self._status == self.ACTSTATUS_END
+            return self._status == self.ACTSTATUS_END or self._newsts == self.ACTSTATUS_END
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def wait_seconds(self, s, onlysim=False):
         try:
-            if not onlysim or self.simulated(self.giocatore_turno):
+            if self._globals.get_quick():
+                s = 0.1
+            if not onlysim or self.simulated():
                 self._wait_delay = monotonic() + s
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -78,6 +111,9 @@ class Action(metaclass=ABCMeta):
             if self._wait_delay < monotonic():
                 if self._wait_popup:
                     pass
+                elif self._newsts != self._status:
+                    self._status = self._newsts
+                    echo_message("Action status: " + self._status)
                 elif self._status == self.ACTSTATUS_DEFAULT:
                     pass
                 elif self._status == self.ACTSTATUS_START:
@@ -91,16 +127,43 @@ class Action(metaclass=ABCMeta):
 
     def on_popup(self):
         try:
-            self._fsm.game_man.on_show_popup("", False)
-            self._wait_popup = False
-            echo_message("Stato: " + str(self._status))
+            if self._tout_popup is not None:
+                self._tout_popup.cancel()
+                self._tout_popup = None
+            if self._wait_popup:
+                self._fsm.on_hide_popup()
+                self._popup_box = None
+                self._wait_popup = False
+                echo_message("Restore status: " + str(self._status))
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def show_popup(self, txt, visible=True):
+    def show_timed_popup(self, txt, tout=0.5):
+        try:
+            self.show_popup(txt)
+            if self._globals.get_autoclose():
+                # Autoclose popup
+                self._tout_popup = Timer(tout, self.on_popup)
+                self._tout_popup.start()
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def show_popup(self, txt):
         try:
             echo_message(txt)
-            self._fsm.game_man.on_show_popup(txt, visible)
+            self._popup_box = self._fsm.on_show_popup(txt)
             self._wait_popup = True
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def on_event(self, evt):
+        try:
+            if self._wait_popup and self._popup_box is not None:
+                if evt.type == pygame.MOUSEMOTION:
+                    self._popup_hover = self._popup_box.rect.collidepoint(pygame.mouse.get_pos())
+
+                if evt.type == pygame.MOUSEBUTTONUP:
+                    if self._popup_hover is not None:
+                        self.on_popup()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)

@@ -28,14 +28,17 @@ from glob import glob
 
 STYLE_JSON  = open('style/theme.json').read()
 
-data_files = [('Images', glob('images/*.*')),('fonts', glob('fonts/*.*')),('style', glob('style/*.*'))]
+data_files = [('images', glob('images/*.*')), ('fonts', glob('fonts/*.*')), ('style', glob('style/*.*'))]
+
+data_files.append(('style', ['style/theme.style']))
+#data_files.extend(matplotlib.get_py2exe_datafiles())
 
 includes = ['datetime']
 
 excludes = ['_gtkagg', '_tkagg', 'bsddb', 'curses',  'pywin.debugger',
             'pywin.debugger.dbgcon', 'pywin.dialogs', 'tcl',
             'Tkconstants', 'Tkinter', 'unittest']
-packages = []
+packages = ['style', 'images']
 
 dll_excludes = ['libgdk-win32-2.0-0.dll', 'libgobject-2.0-0.dll', 'tcl84.dll',
                 'tk84.dll','MSVCP90.dll']
@@ -52,6 +55,7 @@ setup(
                           "packages": packages,
                           "dll_excludes": dll_excludes,
                           "bundle_files": 1,
+                          "compressed": True,
                           "dist_dir": "dist",
                           "xref": False,
                           "skip_archive": False,
@@ -60,7 +64,6 @@ setup(
                          }
               },
     zipfile = None,
-    windows = [{'script': "entry.py",
-            'other_resources': [
-                 (u'style/theme.json', 1, STYLE_JSON)]
-           }])
+
+    windows = [filename]
+    )

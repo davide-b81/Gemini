@@ -132,10 +132,8 @@ class SpritePopUp(UITextBox):
             self._txt = txt
 
             if self._visible:
-                #self._text_box.set_image(pygame.transform.scale(self.orig_image, self._size))
                 if self._text_box is not None:
                     self._text_box.visible = True
-                    self._text_box.append_html_text("<p>XDXDXDXD</p>")
                     self.image.blit(self._text_box, self._size)
             elif self._text_box is not None:
                 del(self._text_box)
@@ -192,7 +190,7 @@ class SpritePopUp(UITextBox):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def get_z_index(self):
+    def get_z(self):
         try:
             return self._z_index
         except Exception as e:

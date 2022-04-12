@@ -70,7 +70,7 @@ class SpriteMazzo(MySprite):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_position(self, pos, instant=False):
+    def set_position(self, pos, instant):
         try:
             self._pos = pos
             self.rect = self.image.get_rect()
@@ -113,7 +113,7 @@ class SpriteMazzo(MySprite):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def get_z_index(self):
+    def get_z(self):
         return 0
 
     def get_visible(self):
