@@ -27,6 +27,7 @@ class FsmGermini(FsmGioco):
     mostrata = None
     numero_giocatori = 4
     _taglio = None
+    _strategia = None
     _versicole = {}
 
     STATUS_PUNTEGGI = "STATUS_PUNTEGGI"
@@ -62,6 +63,7 @@ class FsmGermini(FsmGioco):
             self.set_postazioni([POSTAZIONE_NORD, POSTAZIONE_EST, POSTAZIONE_SUD, POSTAZIONE_OVEST])
             self._t_sub_status = monotonic()
             self._taglio = {}
+            self._strategia = Strategia(self._game_man)
 
             for ppos in self._game_man.get_postazioni():
                 self._versicole[ppos] = VersicoleManager()
@@ -153,15 +155,13 @@ class FsmGermini(FsmGioco):
         try:
             if player is None:
                 player = self.get_player()
-            n = len(self._game_man.get_carte_rubate(player))
-            cc = Strategia.scarta_carte(player, n)
-            for c in cc:
-                echo_message(_(str(player) + " scarta " + str(c)))
-                self.sposta_carta(c, DeckId.DECK_MANO, DeckId.DECK_POZZO, player)
+            c = Strategia.scarta_carta(player)
+            echo_message(_(str(player) + " scarta " + str(c)))
+            self.sposta_carta(c, DeckId.DECK_MANO, DeckId.DECK_POZZO, player)
             # Sposta le rubate tra le carte in mano
-            for c in self._game_man.get_carte_rubate(player):
-                self.sposta_carta(c, DeckId.DECK_RUBATE, DeckId.DECK_MANO, player)
-            return cc
+            r = self._game_man.get_carte_rubate(player)[0]
+            self.sposta_carta(r, DeckId.DECK_RUBATE, DeckId.DECK_MANO, player)
+            return c
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -304,6 +304,12 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def gioca_prima_carta(self, player):
+        try:
+            return Strategia.gioca_prima_carta(player)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def gioca_carta_caduto(self, player, caduto):
         try:
             return Strategia.gioca_carta_caduto(player, caduto)
@@ -427,6 +433,13 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def on_presa(self, winner, c_list):
+        try:
+            Strategia.on_presa(winner, c_list)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+
     def metti_in_lista(self, lista, cc):
         try:
             if lista is None:
@@ -489,10 +502,33 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def get_coppia(self, ppos):
+        try:
+            if ppos == POSTAZIONE_SUD or ppos == POSTAZIONE_NORD:
+                return (self.get_player_at_pos(POSTAZIONE_NORD), self.get_player_at_pos(POSTAZIONE_SUD))
+            elif ppos == POSTAZIONE_EST or ppos == POSTAZIONE_OVEST:
+                return (self.get_player_at_pos(POSTAZIONE_EST), self.get_player_at_pos(POSTAZIONE_OVEST))
+            else:
+                raise Exception("Coppia sconosciuta.")
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def punteggio_coppia(self, ppos):
+        try:
+            pts = 0
+            (p1, p2) = self.get_coppia(ppos)
+            if p1 is not None:
+                pts = pts + p1.get_punti_mano()
+            if p2 is not None:
+                pts = pts + p2.get_punti_mano()
+            return pts
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def get_compagno_mazziere(self):
         try:
             if self._globals.get_debug():
-                return self.get_player_at_pos("Sud")
+                return self.get_player_at_pos(POSTAZIONE_SUD)
 
             pos = self._game_man.get_opposit_pos(self._game_man.get_mazziere().get_position())
             return self._game_man.get_player_at_pos(pos)
@@ -503,27 +539,39 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
         try:
             if player is None:
                 player = self._game_man.get_player()
+
+            self._versicole[player.get_position()].reset()
             ca = self.get_carte_mano(player)
-
             self._versicole[player.get_position()].riempi(ca)
-
-            #for v in definizione:
-            #    pts = self._versicole[player.get_position()].get_points(v)
-            #    player.somma_punti(pts)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def get_versicole(self, player=None):
+    def gestisci_carte_versicola(self, ca, player=None):
         try:
             if player is None:
                 player = self._game_man.get_player()
             if player.get_position() in self._versicole:
-                return self._versicole[player.get_position()]
-            else:
-                return None
-            #for v in definizione:
-            #    pts = self._versicole[player.get_position()].get_points(v)
-            #    player.somma_punti(pts)
+                self._versicole[player.get_position()].gestisci_carte(ca)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_versicole_dichiarazione(self, player=None):
+        try:
+            txt = ""
+            if player is None:
+                player = self._game_man.get_player()
+            if player.get_position() in self._versicole:
+                txt = self._versicole[player.get_position()].get_txt_description()
+            return txt
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def marca_punti_versicole(self, c, player=None):
+        try:
+            if player == None:
+                player = self.get_player()
+            pts = self._versicole[player.get_position()].get_punti_totali()
+            self._game_man.marca_punti(player, pts)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -550,9 +598,15 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
 
     def get_text_punti_mano(self):
         try:
-            txt = "<p> Punteggi mano:<br/>"
-            for p in self._game_man.get_giocatori():
-                txt = txt + str(p) + ": " + str(p.get_punti_mano()) + "<br/>"
+            txt = "<p>Punteggi mano:<br/>"
+            pts = self.punteggio_coppia(POSTAZIONE_NORD)
+            (p1, p2) = self.get_coppia(POSTAZIONE_NORD)
+            if p1 is not None and p2 is not None:
+                txt = txt + str(p1) + "-" + str(p2) + ": " + str(p1.get_punti_mano() + p2.get_punti_mano()) + "<br/>"
+            self.punteggio_coppia(POSTAZIONE_EST)
+            (p1, p2) = self.get_coppia(POSTAZIONE_EST)
+            if p1 is not None and p2 is not None:
+                txt = txt + str(p1) + "-" + str(p2) + ": " + str(p1.get_punti_mano() + p2.get_punti_mano()) + "<br/>"
             txt = txt + "</p>"
             return txt
         except Exception as e:
@@ -560,10 +614,9 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
 
     def get_text_punti_totale(self):
         try:
-            txt = "<p> Punteggi totali:<br/>"
+            txt = "<p>Punteggi totali:<br/>"
             for p in self._game_man.get_giocatori():
-                txt = txt + "<p>" + str(p) + ":"
-                txt = txt + str(p) + ": " + str(p.get_punti_totale()) + "<br/>"
+                txt = txt + str(p) + ": " + str(p.get_punti_partite()) + "<br/>"
             txt = txt + "</p>"
             return txt
         except Exception as e:

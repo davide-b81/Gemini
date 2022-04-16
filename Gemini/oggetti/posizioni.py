@@ -112,10 +112,10 @@ class PosizioniId(Enum):
     POS_MOSTRATE_O = 108
 
     POS_SCARTO_DEFAULT = 110
-    POS_SCARTO_N = 111
-    POS_SCARTO_S = 112
-    POS_SCARTO_E = 113
-    POS_SCARTO_O = 114
+    #POS_SCARTO_N = 111
+    #POS_SCARTO_S = 112
+    #POS_SCARTO_E = 113
+    #POS_SCARTO_O = 114
 
     POS_TOKEN_M_N = 120
     POS_TOKEN_M_S = 121
@@ -217,19 +217,6 @@ class Posizioni(object):
             self.desk_centro = (
                 self.desk_pos[0] + (self.desk_area.get_width() / 2),
                 self.desk_pos[1] + (self.desk_area.get_height() / 2))
-            self.gioc_pos_n = (self.desk_centro[0], self.desk_pos[1])
-            self.gioc_pos_s = (self.desk_centro[0], self.desk_pos[1] + (self.screen.get_height() / 2))
-            self.gioc_pos_e = (self.desk_area.get_width() + self.desk_pos[0], self.desk_centro[1])
-            self.gioc_pos_o = (self.desk_pos[0], self.desk_centro[1])
-
-            self.mano_area = pygame.Surface(
-                ((self.screen.get_width() / 3), (self.screen.get_height() - (self.desk_area.get_height()) / 2)))
-            self.mano_pos = ((self.desk_area.get_width() / 2), self.desk_pos[1] + self.desk_area.get_height())
-
-            self.etic_pos_n = ((self.screen.get_width() / 2), self.desk_pos[1])
-            self.etic_pos_s = ((self.screen.get_width() / 2), self.desk_pos[1] + self.desk_area.get_height())
-            self.etic_pos_e = (self.desk_pos[0] + self.desk_area.get_width(), self.desk_centro[1])
-            self.etic_pos_o = (self.desk_pos[0], self.desk_centro[1])
 
             self._posizioni[PosizioniId.POS_MANO_N] = (centro[0], self.margin)
             self._posizioni[PosizioniId.POS_MANO_S] = (centro[0], wsize[1] - self._card_size[1] - self.margin)
@@ -279,12 +266,12 @@ class Posizioni(object):
             self._posizioni[PosizioniId.POS_RUBATE_E] = (wsize[0] - self._card_size[1] - (2 * self.margin), centro[1])
 
             self._posizioni[PosizioniId.POS_SCARTO_DEFAULT] = (0, 0)
-            self._posizioni[PosizioniId.POS_SCARTO_N] = (wsize[0] - (2 * self.margin), (1.5 * self._card_size[1]))
-            self._posizioni[PosizioniId.POS_SCARTO_S] = ((2 * self.margin), wsize[1] - (0.5 * self._card_size[1]))
-            self._posizioni[PosizioniId.POS_SCARTO_E] = (wsize[0] - (0.5 * self._card_size[0]), wsize[1] - (1.5 * self._card_size[1]))
-            self._posizioni[PosizioniId.POS_SCARTO_O] = ((0.5 * self._card_size[0]), (1.5 * self._card_size[1]))
+            #self._posizioni[PosizioniId.POS_SCARTO_N] = (wsize[0] - (2 * self.margin), (1.5 * self._card_size[1]))
+            #self._posizioni[PosizioniId.POS_SCARTO_S] = ((2 * self.margin), wsize[1] - (0.5 * self._card_size[1]))
+            #self._posizioni[PosizioniId.POS_SCARTO_E] = (wsize[0] - (0.5 * self._card_size[0]), wsize[1] - (1.5 * self._card_size[1]))
+            #self._posizioni[PosizioniId.POS_SCARTO_O] = ((0.5 * self._card_size[0]), (1.5 * self._card_size[1]))
 
-            self._posizioni[PosizioniId.SIZE_PUNTEGGI] = (self._card_size[0] * 3.5, self._card_size[1] * 2)
+            self._posizioni[PosizioniId.SIZE_PUNTEGGI] = (self._card_size[0] * 2.0, self._card_size[1] * 1.3)
             self._posizioni[PosizioniId.POS_FRAME_PUNTEGGI] = (5, 5)
 
             self._posizioni[PosizioniId.SIZE_FRAME_LOG] = (self._card_size[0] * 3, wsize[1] / 6)
@@ -314,16 +301,19 @@ class Posizioni(object):
             self._elementi[PosId.POS_OVEST][ElementoId.ELEMENTO_TOKEN_MAZ] = (10 + 75, wsize[1] / 2)
             self._elementi[PosId.POS_EST][ElementoId.ELEMENTO_TOKEN_MAZ] = (10 + wsize[0] - 75, wsize[1] / 2)
 
-            self._elementi[PosId.POS_NORD][ElementoId.ELEMENTO_TOKEN_TUR] = (wsize[0] / 2, wsize[1] / 4)
-            self._elementi[PosId.POS_SUD][ElementoId.ELEMENTO_TOKEN_TUR] = (wsize[0] / 2, 3 * wsize[1] / 4)
-            self._elementi[PosId.POS_OVEST][ElementoId.ELEMENTO_TOKEN_TUR] = (wsize[0] / 4, wsize[1] / 2)
-            self._elementi[PosId.POS_EST][ElementoId.ELEMENTO_TOKEN_TUR] = (3 * wsize[0] / 4, wsize[1] / 2)
+            self._posizioni[PosizioniId.SIZE_TOKEN] = (50, 50)
+            radius = (self._posizioni[PosizioniId.SIZE_TOKEN][0] / 2, self._posizioni[PosizioniId.SIZE_TOKEN][1] / 2)
+            tok_bord = ((2 * self.margin) + self._card_size[1] + (self._posizioni[PosizioniId.SIZE_TOKEN][0]/2), (2 * self.margin) + self._card_size[1] + (self._posizioni[PosizioniId.SIZE_TOKEN][1]/2))
+            #tok_bord = (0, 0)
+            self._elementi[PosId.POS_NORD][ElementoId.ELEMENTO_TOKEN_TUR] = (centro[0], tok_bord[1] - radius[1])
+            self._elementi[PosId.POS_SUD][ElementoId.ELEMENTO_TOKEN_TUR] = (centro[0], wsize[1] - tok_bord[1] - radius[1])
+            self._elementi[PosId.POS_OVEST][ElementoId.ELEMENTO_TOKEN_TUR] = (tok_bord[0] - radius[0], centro[1])
+            self._elementi[PosId.POS_EST][ElementoId.ELEMENTO_TOKEN_TUR] = (wsize[0] - tok_bord[0] - radius[0], centro[1])
 
             self._elementi[PosId.POS_NORD][ElementoId.ELEMENTO_TOKEN_MAZ] = (wsize[0] / 2, 75)
             self._elementi[PosId.POS_SUD][ElementoId.ELEMENTO_TOKEN_MAZ] = (wsize[0] / 2, wsize[1] - 75)
             self._elementi[PosId.POS_OVEST][ElementoId.ELEMENTO_TOKEN_MAZ] = (75, wsize[1] / 2)
             self._elementi[PosId.POS_EST][ElementoId.ELEMENTO_TOKEN_MAZ] = (wsize[0] - 75, wsize[1] / 2)
-            self._posizioni[PosizioniId.SIZE_TOKEN] = (50, 50)
 
 
             self._elementi[PosId.POS_NORD][ElementoId.ELEMENTO_NOME_LABEL] = (wsize[0] / 2, self.margin / 3)

@@ -164,6 +164,7 @@ class GiocoFrame(object):
         try:
             if self._box_punti is not None:
                 self._box_punti.hide()
+                self._box_punti.kill()
                 del self._box_punti
             (x, y) = self._posizioni.get_posizione(PosizioniId.POS_FRAME_PUNTEGGI)
             (w, h) = self._posizioni.get_posizione(PosizioniId.SIZE_PUNTEGGI)
@@ -180,16 +181,8 @@ class GiocoFrame(object):
 
     def on_update_punteggi(self):
         try:
-            txt = "<p>"
-            for p in self._game_man.get_giocatori():
-                txt = txt + str(p) + ": " + str(p.get_punti_mano()) + "<br/>"
-            txt = txt + "</p>"
-            for p in self._game_man.get_giocatori():
-                txt = txt + "<p>" + str(p) + ":<br/>"
-                ca = self._game_man.get_carte_mano(p)
-                if ca is not None:
-                    for c in ca:
-                        txt = txt + ", " + c.get_short_name()
+            txt = self._game_man.get_text_punti_mano()
+            txt = txt + self._game_man.get_text_punti_totale()
             self.draw_box_punteggi(txt)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -318,8 +311,7 @@ class GiocoFrame(object):
         try:
             self._game_man.on_event(evt)
 
-            if self._popup_box is not None:
-                self._sprite_man.on_event(evt)
+            self._sprite_man.on_event(evt)
 
             if self._box_punti is not None:
                 self._box_punti.process_event(evt)
@@ -423,6 +415,7 @@ class GiocoFrame(object):
         try:
             if self._popup_box is not None:
                 self._popup_box.visible = False
+                self._popup_box.kill()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 

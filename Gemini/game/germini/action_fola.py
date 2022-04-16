@@ -88,7 +88,7 @@ class ActionFola(Action):
             txt = "La fola contiene" + \
                   self.fola_descrive_sub(Palo.DENARI) + self.fola_descrive_sub(Palo.COPPE) + \
                   self.fola_descrive_sub(Palo.SPADE) + self.fola_descrive_sub(Palo.BASTONI)
-            self.show_timed_popup("<p>" + txt + "</p>", 1.5)
+            self.show_timed_popup("<p>" + txt + "</p>", 0.05)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -102,8 +102,7 @@ class ActionFola(Action):
                             self._fsm.move_card_and_repos(c, DeckId.DECK_FOLA, DeckId.DECK_RUBATE, FRONTE_SCOPERTA, self._fsm.get_player())
                             self._fsm.mostra_rubate(self._fsm.get_position_turno())
                             if c.get_id() in carte_conto:
-                                print(str(self._fsm.get_player()) + " marca i punti di " + str(c) + ": " + str(carte_conto[c.get_id()]) + " punti.")
-                                print(str(self._fsm.get_player()) + " prende " + str(c) + ".")
+                                print(str(self._fsm.get_player()) + " prende " + str(c) + " e marca " + str(carte_conto[c.get_id()]) + "punti")
                         else:
                             self._fsm.mostra_fola(self._fsm.get_mazziere())
                             print("Finisce il rubare di " + str(self._fsm.get_player()))

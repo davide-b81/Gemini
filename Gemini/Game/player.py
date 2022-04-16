@@ -17,7 +17,7 @@ class Player(object):
     _position = None
     _name = None
     _punti_mano = None
-    _punti_totali = None
+    _punti_partite = None
     _caduto = None
     _delegate_sort = None
     _delegate_dichiara = None
@@ -39,7 +39,8 @@ class Player(object):
             self._position = pos
             self._cards_mangiate = []
             self._punti_mano = 0
-            self._punti_totali = 0
+            self._punti_partite = 0
+            self._resti = 0
             self._n_da_scartare = 0
             self._caduto = False
             self._simulated = True
@@ -98,12 +99,6 @@ class Player(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def dichiara(self, ca):
-        try:
-            self.versicole.gestisci_carte(ca)
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
     def on_versicola(self, txt):
         try:
             self._delegate_dichiara(txt)
@@ -131,6 +126,13 @@ class Player(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def segna_punti(self, pts):
+        try:
+            print(str(self) + " marca " + str(pts))
+            self._punti_mano = self._punti_mano + pts
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def mangia_carta(self, c, pts):
         try:
             if c is not None:
@@ -139,20 +141,22 @@ class Player(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    #def somma_punti(self, pts):
-    #    self._punti_mano = self._punti_mano + pts
-    #    return self._punti_mano
-
     def get_punti_mano(self):
         return self._punti_mano
 
-    def get_punti_totale(self):
-        return self._punti_totali
+    def get_punti_partite(self):
+        return self._punti_partite
+
+    def get_resti(self):
+        return self._resti
 
     def on_fine_mano(self):
-        self._punti_totali = self._punti_totali + self._punti_mano
+        self._punti_partite = self._punti_partite + self._punti_mano
         self._punti_mano = 0
-        return self._punti_totali
+        return self._punti_partite
+
+    def on_fine_giro(self):
+        self._punti_partite = 0
 
     def on_cade(self):
             pass
@@ -166,7 +170,7 @@ class Player(object):
     def reset_all(self):
         try:
             self.reset()
-            self._punti_totali = 0
+            self._punti_partite = 0
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 

@@ -132,6 +132,7 @@ class Action(metaclass=ABCMeta):
                 self._tout_popup = None
             if self._wait_popup:
                 self._fsm.on_hide_popup()
+                self._popup_box.kill()
                 self._popup_box = None
                 self._wait_popup = False
                 echo_message("Restore status: " + str(self._status))
@@ -143,8 +144,9 @@ class Action(metaclass=ABCMeta):
             self.show_popup(txt)
             if self._globals.get_autoclose():
                 # Autoclose popup
-                self._tout_popup = Timer(tout, self.on_popup)
-                self._tout_popup.start()
+                if tout is not None:
+                    self._tout_popup = Timer(tout, self.on_popup)
+                    self._tout_popup.start()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 

@@ -80,7 +80,7 @@ class Gestore(object):
             self._gioco_man.set_delegate_hide_tavola(self.on_hide_tavola)
 
             self._gioco_man.set_delegate_card_move(self.on_move)
-            self._gioco_man.set_delegate_restore(self.on_restore_mazzo)
+            self._gioco_man.set_delegate_restore_mazzo(self.on_restore_mazzo)
             self._gioco_man.set_delegate_rotate_pos_carta(self.on_rotate_pos_carta)
             self._gioco_man.set_delegate_set_z(self.on_set_z)
             self._gioco_man.set_delegate_set_hoverable(self.on_set_hoverable)
@@ -465,10 +465,10 @@ class Gestore(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def on_presa(self):
+    def on_presa(self, player, c_list):
         try:
             self._gioco_frame.on_update_punteggi()
-            self._gioco_man.update_carte()
+            self._gioco_man.on_presa(player, c_list)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 

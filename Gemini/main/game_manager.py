@@ -30,7 +30,6 @@ class GiocoManager(object):
     _gen_manager = None
     _pos_man = None
     _tavolo = None
-    _strategia = None
     _draw_stable = None
     _posizioni = None
     # Gestione carta
@@ -85,8 +84,6 @@ class GiocoManager(object):
             self._gen_manager.set_delegate_set_fronte(self.set_fronte)
             self._gen_manager.set_delegate_is_coperta(self.is_coperta)
             self._gen_manager.set_delegate_rotate_pos_carta(self.rotate_pos_carta)
-            self._strategia = Strategia(self)
-
             self._fsmger = FsmGermini(self, self._gen_manager)
             self._fsmger.set_delegate_append_html_text(self.on_append_text_box)
             self._fsmger.set_delegate_show_popup(self.on_show_popup)
@@ -163,7 +160,7 @@ class GiocoManager(object):
     def set_delegate_rotate_pos_carta(self, f):
         self._delegate_rotate_pos_carta = f
 
-    def set_delegate_restore(self, foo):
+    def set_delegate_restore_mazzo(self, foo):
         self._delegate_restore_mazzo = foo
 
     def set_delegate_frame_show_popup(self, foo):
@@ -224,9 +221,9 @@ class GiocoManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def on_mazziere(self, player):
+    def on_mazziere(self, ppos):
         try:
-            self._delegate_mazziere(player)
+            self._delegate_mazziere(ppos)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -254,13 +251,18 @@ class GiocoManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def marca_punti(self, player, c):
+    def marca_punti(self, player, pts):
+        try:
+            player.segna_punti(pts)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def marca_punti_carta(self, player, c):
         try:
             if c.get_id() in carte_conto:
                 pts = carte_conto[c.get_id()]
                 if pts > 0:
                     player.mangia_carta(c, pts)
-                self._delegete_on_presa()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -269,22 +271,40 @@ class GiocoManager(object):
             ca = self._gen_manager.get_carte_in_tavola_pos(player.get_position())
             for c in ca:
                 if c.get_id() != CartaId.MATTO_0:
-                    self.marca_punti(winner, c)
+                    self.marca_punti_carta(winner, c)
                 elif not self._gen_manager.is_ultima_mano():
                     pass
                 else:
                     pass
                 self.nascondi_carta(c)
                 self._gen_manager.remove_tavola(winner, c)
-            self._delegete_on_presa()
+            self._delegete_on_presa(winner, ca)
             self.on_redraw()
             return ca
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def on_presa(self, player):
+    def get_text_punti_mano(self):
         try:
-            pass
+            if self.game != None and self.game == self._fsmger:
+                return self._fsmger.get_text_punti_mano()
+            return ""
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_text_punti_totale(self):
+        try:
+            if self.game != None and self.game == self._fsmger:
+                return self._fsmger.get_text_punti_totale()
+            return ""
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def on_presa(self, player, c_list):
+        try:
+            self.update_carte()
+            if self.game != None:
+                self.game.on_presa(player, c_list)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -512,7 +532,7 @@ class GiocoManager(object):
             if player is None:
                 player = self.get_mazziere()
             
-            pp = self._gen_manager.get_giocatori()
+            #pp = self._gen_manager.get_giocatori()
             #if pp[0].get_position() is not None:
             #    print(str(pp[0]) + " - " + pp[0].get_position())
             #if pp[1].get_position() is not None:
@@ -535,7 +555,8 @@ class GiocoManager(object):
             
             player = self._gen_manager.get_player_at_pos(pos)
             if player is not None:
-                echo_message("Turno di " + str(player) + " (" + player.get_position() + ")")
+                n = len(self.get_deck(DeckId.DECK_MANO, player.get_position()))
+                echo_message("Turno di " + str(player) + " (" + player.get_position() + ") - " + str(n) + " carte in mano.")
             else:
                 raise Exception("No player")
             return player
@@ -633,14 +654,17 @@ class GiocoManager(object):
 
     def mostra_taglio(self, ppos=None):
         try:
-            ca = self._gen_manager.get_taglio()
+            mazzo = self._gen_manager.get_taglio()
             i = 0
-            for c in ca:
+            #if not self._globals.get_uncover():
+            #    mazzo.reverse()
+            for c in mazzo:
                 self._delegate_show_carta(c)
                 (x, y) = self._pos_man.get_area_taglio(ppos)
                 pos = (int(x + (i / 2)), int(y + (i / 2)))
                 self._delegate_posiziona_carta(c, pos, self._globals.get_instant())
-                self._delegate_set_z(c, i + 1)
+                if not self._globals.get_uncover():
+                    self._delegate_set_z(c, i + 1)
                 self._delegate_rotate_pos_carta(c, ppos, self._globals.get_instant())
                 i = i + 1
             self.on_redraw()
@@ -681,15 +705,22 @@ class GiocoManager(object):
             ca = self._gen_manager.get_deck(deck)
             if n is None:
                 n = len(ca)
+
             for c in ca:
+                if not self._globals.get_uncover():
+                    index = i
+                else:
+                    index = n - i
                 (x, y) = self._pos_man.get_area_mazzo(deck, ppos)
-                pos = (int(x + (i / 2)), int(y + (i / 2)))
+                pos = (int(x + (index / 2)), int(y + (index / 2)))
                 self._delegate_show_carta(c, pos)
                 self._delegate_posiziona_carta(c, pos, self._globals.get_instant())
                 self._delegate_rotate_pos_carta(c, ppos, self._globals.get_instant())
-                self._delegate_set_z(c, i + 1)
+                self._delegate_set_z(c, index + 1)
+
                 self._delegate_set_hoverable(c, hoverable)
                 hoverable = False
+
                 i = i + 1
                 if i >= n:
                     break
@@ -734,15 +765,15 @@ class GiocoManager(object):
                 ppos = player.get_position()
             else:
                 ppos = None
+
             if src_deck is not None:
                 src = self._gen_manager.get_deck(src_deck, ppos)
                 dst = self._gen_manager.get_deck(dst_deck, ppos)
-                pos = self._pos_man.get_pos_stesa(ppos, dst_deck, 0, len(dst), self._pos_man.get_card_size()[0] / 2)
-                self._delegate_posiziona_carta(c, pos, self._globals.get_instant())
                 src.remove(c)
-            dst = self._gen_manager.get_deck(dst_deck, ppos)
-            dst.append(c)
-            self.on_redraw()
+                dst = self._gen_manager.get_deck(dst_deck, ppos)
+                if dst is not None:
+                    dst.append(c)
+                self.on_redraw()
         except Exception as e:
             print(str(c))
             ExceptionMan.manage_exception("", e, True)

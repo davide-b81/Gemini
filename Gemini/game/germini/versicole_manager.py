@@ -93,6 +93,7 @@ class VersicoleManager(object):
             for o in self._o:
                 for c in ca:
                     o.insert_cid(c.get_id())
+            self.evaluate_versicole()
         except Exception as e:
             ExceptionMan.manage_exception("Error: ", e, True)
 
@@ -143,7 +144,7 @@ class VersicoleManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("Error. ", e, True)
 
-    def evaluate_versicole(self, callback):
+    def evaluate_versicole(self):
         try:
             for o in self._o:
                 #print("> " + str(o))
@@ -151,15 +152,25 @@ class VersicoleManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("Error. ", e, True)
 
-    def get_lista_versicole(self):
+    def get_lista_versicole(self, o):
         try:
             l = []
-            for o in self._o:
-                a = o.get_lista()
-                if len(a) > 0:
-                    for aa in a:
-                        l.append(aa)
+            a = o.get_lista()
+            if len(a) > 0:
+                for aa in a:
+                    l.append(aa)
             return l
+        except Exception as e:
+            ExceptionMan.manage_exception("Error. ", e, True)
+
+    def get_punti_totali(self):
+        n = 0
+        try:
+            for o in self._o:
+                lv = self.get_lista_versicole(o)
+                for l in lv:
+                    n = n + Versicola.punti(l)
+            return n
         except Exception as e:
             ExceptionMan.manage_exception("Error. ", e, True)
 
@@ -167,9 +178,9 @@ class VersicoleManager(object):
         try:
             txt = ""
             for o in self._o:
-                lv = o.get_lista()
+                lv = self.get_lista_versicole(o)
                 if len(lv) > 0:
-                    txt = txt + "> " + str(o) + ":"
+                    txt = txt + str(o) + ":"
                     for l in lv:
                         txt = txt + " "
                         for cid in l:
@@ -178,11 +189,9 @@ class VersicoleManager(object):
                                 txt = txt + ", "
                             else:
                                 txt = txt + ". "
-                        txt = txt + "Punti " + str(Versicola.punti(l)) + ".\n"
+                        txt = "<p>" + txt + "Punti " + str(Versicola.punti(l)) + ".</p>"
             if len(txt) <= 0:
-                txt = txt + "Nessuna versicola da dichiarare."
-            else:
-                print("TXT " + str(len(txt)))
+                txt = txt + "<p>Nessuna versicola da dichiarare.</p>"
             return txt
         except Exception as e:
             ExceptionMan.manage_exception("Error. ", e, True)
@@ -196,13 +205,11 @@ if __name__ == '__main__':
     ca = [ Carta(CartaId.PAPA_I),
           Carta(CartaId.PAPA_III), Carta(CartaId.TORO_XXXIV), Carta(CartaId.PAPA_II),
           Carta(CartaId.LEONE_XXXIII), Carta(CartaId.SOLE_XXXVIII), Carta(CartaId.MONDO_XXXIX),Carta(CartaId.TROMBA_XL)]
-    ca1 =  [Carta(CartaId.COPPE_R), Carta(CartaId.BASTO_R), Carta(CartaId.SPADE_R), Carta(CartaId.CAPRIC_XXVIII), Carta(CartaId.SAGITT_XXIX), Carta(CartaId.CANCRO_XXX)]
+    ca1 = [Carta(CartaId.COPPE_R), Carta(CartaId.BASTO_R), Carta(CartaId.SPADE_R), Carta(CartaId.CAPRIC_XXVIII), Carta(CartaId.SAGITT_XXIX), Carta(CartaId.CANCRO_XXX)]
     try:
         vm = VersicoleManager()
         vm.gestisci_carte(ca)
-        vm.evaluate_versicole(dichiara)
-
-        vve = vm.get_lista_versicole()
+        vm.evaluate_versicole()
         print(vm.get_txt_description())
         #for v in vve:
         #    print("> " + str(v)  + " - " + str(Versicola.punti(v)) + " punti")

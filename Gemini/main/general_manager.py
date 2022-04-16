@@ -299,7 +299,9 @@ class GeneralManager(object):
                 if str(self._carte_mazzo[0].get_id()) == str(cid):
                     print("Break taglio " + str(cid))
                     break
-                self._col_carte_taglio.append(self._carte_mazzo.pop(0))
+                c = self._carte_mazzo.pop(0)
+                self._col_carte_taglio.append(c)
+                print("Pop " + str(c))
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -397,13 +399,31 @@ class GeneralManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def cls_deck(self, d):
+        try:
+            for col in d:
+                d[col].clear()
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def restore_mazzo(self):
         try:
             assert self._carte_tutte is not None
             if self._delegate_restore_mazzo is not None:
                 self._delegate_restore_mazzo()
+
             self._carte_mazzo.clear()
+            self._carte_pozzo.clear()
+            self._col_carte_taglio.clear()
+            self._col_carte_fola.clear()
+
+            self.cls_deck(self._col_carte_scarti)
+            self.cls_deck(self._col_carte_mano)
+            self.cls_deck(self._col_carte_prese)
+            self.cls_deck(self._col_carte_rubate)
+
             self._carte_mazzo = self._carte_tutte.copy()
+
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -628,9 +648,10 @@ class GeneralManager(object):
                 if c is None:
                     break
                 ca.append(c)
+            return ca
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
-        return ca
+
 
     def pesca_dal_mazzo(self, deck=DeckId.DECK_MAZZO, ppos=None):
         try:

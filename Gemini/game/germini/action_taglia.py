@@ -62,7 +62,7 @@ class ActionTaglia(Action):
                     self._newsts = self.ACTSTATUS_MOSTRA_TAGLIO
 
             elif self._status == self.ACTSTATUS_MOSTRA_TAGLIO:
-                    self.wait_seconds(1)
+                    self.wait_seconds(0.1)
                     self._newsts = self.ACTSTATUS_RUBA
 
             elif self._status == self.ACTSTATUS_RUBA:
@@ -102,10 +102,10 @@ class ActionTaglia(Action):
                         if self.is_rubabile(c):
                             self._newsts = self.ACTSTATUS_END
                         else:
-                            self.wait_seconds(1)
                             self._newsts = self.ACTSTATUS_MOSTRA_TAGLIO
+
                 elif self._status == self.ACTSTATUS_RUBA:
-                    c = self._fsm.get_prima(DeckId.DECK_TAGLIO)
+                    c = self._fsm.get_prima(DeckId.DECK_TAGLIO, self._fsm.get_player())
                     if c is not None and str(cid) == c.get_name():
                         if self.is_rubabile(c):
                             c = self._fsm.pop_prima(DeckId.DECK_TAGLIO, self._fsm.get_position_turno())
@@ -120,6 +120,7 @@ class ActionTaglia(Action):
                             #self._fsm.mostra_mazzo(self._fsm.get_position_turno(), DeckId.DECK_MAZZO, n)
                             #self._newsts = self.ACTSTATUS_VEDIPRIME13
                             self._fsm.mostra_mazzo(DeckId.DECK_MAZZO, self._fsm.get_position_turno())
+                            self._newsts = self.ACTSTATUS_END
                 elif self._status == self.ACTSTATUS_VEDIPRIME13:
                     if not self._fsm.simulated():
                         self._fsm.mostra_fola(self._fsm.get_player())

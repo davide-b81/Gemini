@@ -79,7 +79,8 @@ class ActionGiro(Action):
                     txt += "<p>2. " + str(self._sorteggio[1][1]) + " - " + str(self._sorteggio[1][0]) + "</p>"
                     txt += "<p>3. " + str(self._sorteggio[2][1]) + " - " + str(self._sorteggio[2][0]) + "</p>"
                     txt += "<p>4. " + str(self._sorteggio[3][1]) + " - " + str(self._sorteggio[3][0]) + "</p>"
-                    self.show_timed_popup(txt, 18.0)
+                    txt += "<br/><p>Partita 1/4</p>"
+                    self.show_timed_popup(txt, 0.01)
                     self.set_coppie_1()
                     self._newsts = self.ACTSTATUS_PARTITA_1
             elif self._status == self.ACTSTATUS_PARTITA_1:
@@ -195,12 +196,15 @@ class ActionGiro(Action):
                 self._n = self._n + 1
             else:
                 if self._status == self.ACTSTATUS_PARTITA_1:
+                    self.show_timed_popup("Partita 2/4")
                     self._newsts = self.ACTSTATUS_PARTITA_2
                     self._n = 0
                 elif self._status == self.ACTSTATUS_PARTITA_2:
+                    self.show_timed_popup("Partita 3/4")
                     self._newsts = self.ACTSTATUS_PARTITA_3
                     self._n = 0
                 elif self._status == self.ACTSTATUS_PARTITA_3:
+                    self.show_timed_popup("Partita 4/4")
                     self._newsts = self.ACTSTATUS_RISULTATI
                     self._n = 0
         except Exception as e:

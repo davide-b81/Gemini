@@ -73,7 +73,7 @@ class Globals(object):
         return False
 
     def get_autoclose(self):
-        return False
+        return True
 
     def get_demo_mode(self):
         return True
@@ -85,7 +85,7 @@ class Globals(object):
         return True
 
     def get_uncover(self):
-        return True
+        return False
 
     def init_positions(self, screen):
         self._posizioni = Posizioni(screen)

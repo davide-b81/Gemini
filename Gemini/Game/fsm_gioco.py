@@ -151,6 +151,15 @@ class FsmGioco(metaclass=ABCMeta):
     def inizio(self):
         pass
 
+    @abstractmethod
+    def get_text_punti_mano(self):
+        pass
+
+    @abstractmethod
+    def on_presa(self, winner):
+        pass
+
+
     def echo_mazzo(self, deck):
         try:
             print(str(deck) + " contiene:")
@@ -175,7 +184,7 @@ class FsmGioco(metaclass=ABCMeta):
     def update_mazziere(self, player):
         try:
             self._game_man.set_mazziere(player)
-            self._delegate_update_mazziere(player)
+            self._delegate_update_mazziere(player.get_position())
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -205,8 +214,6 @@ class FsmGioco(metaclass=ABCMeta):
             player = self.get_next_player(self.get_player(), antior)
             if player is None:
                 raise Exception("Cannot set next player")
-            else:
-                print("Next player " + str(player))
             self.set_player(player)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -248,7 +255,7 @@ class FsmGioco(metaclass=ABCMeta):
         try:
             if player == None:
                 player = self.get_player()
-            self._game_man.marca_punti(player, c)
+            self._game_man.marca_punti_carta(player, c)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -257,7 +264,7 @@ class FsmGioco(metaclass=ABCMeta):
             assert player is not None
             if c is not None:
                 self._game_man.cala_in_tavola(player, c, self._globals.get_instant())
-                self._game_man.marca_punti(player, c)
+                self._game_man.marca_punti_carta(player, c)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -308,12 +315,12 @@ class FsmGioco(metaclass=ABCMeta):
                         self._status = self.STATUS_MESCOLA
                         self._status_next = self.STATUS_MESCOLA
                         self._status_post = self.STATUS_MESCOLA
-                        self._actions[self._status].start()
+                        self._actions[self._status].start_partita()
                     elif self._act_giro.get_status() == self._act_giro.ACTSTATUS_PARTITA_3:
                         self._status = self.STATUS_MESCOLA
                         self._status_next = self.STATUS_MESCOLA
                         self._status_post = self.STATUS_MESCOLA
-                        self._actions[self._status].start()
+                        self._actions[self._status].start_partita()
                 elif self._running:
                     handler = self.handlers[self._status]
 
@@ -376,6 +383,8 @@ class FsmGioco(metaclass=ABCMeta):
 
     def on_cade(self, player):
         try:
+            if player is None:
+                player = self._game_man.get_player()
             self.scopri_carte(player)
             player.giocatore_cade()
         except Exception as e:

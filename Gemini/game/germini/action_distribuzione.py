@@ -55,10 +55,25 @@ class ActionDistribuzione(Action):
 
     def distribuzione_ultima(self):
         try:
+            c = self._fsm.pesca_dal_mazzo(DeckId.DECK_MAZZO)
+            self._fsm.marca_punti(c)
+
+            self._fsm.update_next_player()
+            c = self._fsm.pesca_dal_mazzo(DeckId.DECK_MAZZO)
+            self._fsm.marca_punti(c)
+
+            self._fsm.update_next_player()
+            c = self._fsm.pesca_dal_mazzo(DeckId.DECK_MAZZO)
+            self._fsm.marca_punti(c)
+
+            self._fsm.update_next_player()
+            c = self._fsm.pesca_dal_mazzo(DeckId.DECK_MAZZO)
+            self._fsm.marca_punti(c)
+
+            self._fsm.update_next_player()
             for player in self._fsm.get_giocatori():
-                c = self._fsm.pesca_dal_mazzo(DeckId.DECK_MAZZO)
+
                 if c is not None:
-                    self._fsm.marca_punti(c, player)
                     self._fsm.consegna_carta(c, FRONTE_SCOPERTA, player)
                 else:
                     raise NotImplemented("Condizione mazziere senza ultima carta")
