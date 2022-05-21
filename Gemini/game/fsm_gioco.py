@@ -10,13 +10,9 @@ from game.action_giro import ActionGiro
 from main.globals import *
 from time import monotonic
 from abc import ABCMeta, abstractmethod
-
-from oggetti.posizioni import DeckId
+from oggetti.posizioni import *
 from oggetti.stringhe import _
 from main.exception_man import ExceptionMan
-
-posizioni = ["Nord", "Est", "Sud", "Ovest"]
-
 
 class FsmGioco(metaclass=ABCMeta):
     '''
@@ -35,6 +31,9 @@ class FsmGioco(metaclass=ABCMeta):
     _t_status = None
     _game_man = None
     _winner = None
+    _t_sub_status = None
+    _cid_apertura = None
+
     _delegate_append_html_text = None
     _delegate_show_popup = None
     _delegate_presa = None
@@ -43,8 +42,6 @@ class FsmGioco(metaclass=ABCMeta):
     _delegate_update_caduto = None
     _delegate_update_fola = None
     _delegate_update_players = None
-    _t_sub_status = None
-    _cid_apertura = None
 
     STATUS_INIZIO = "INIZIO"
     STATUS_FINE = "STATUS_FINE"
@@ -115,7 +112,7 @@ class FsmGioco(metaclass=ABCMeta):
                 return True
             if player is None:
                 player = self.get_player()
-            if player.get_position() == "Sud":
+            if player.get_position() == POSTAZIONE_SUD:
                 return False
             else:
                 return True
@@ -159,11 +156,10 @@ class FsmGioco(metaclass=ABCMeta):
     def on_presa(self, winner):
         pass
 
-
-    def echo_mazzo(self, deck):
+    def echo_mazzo(self, deck, ppos):
         try:
             print(str(deck) + " contiene:")
-            for c in self.get_deck(deck):
+            for c in self.get_list_ca(deck, ppos):
                 print(" - " + str(c))
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -213,6 +209,8 @@ class FsmGioco(metaclass=ABCMeta):
         try:
             player = self.get_next_player(self.get_player(), antior)
             if player is None:
+                player = self.get_next_player(self.get_mazziere(), antior)
+            if player is None:
                 raise Exception("Cannot set next player")
             self.set_player(player)
         except Exception as e:
@@ -227,9 +225,6 @@ class FsmGioco(metaclass=ABCMeta):
     def get_finished(self):
         return self._status == FsmGioco.STATUS_FINE
 
-    def get_winner(self):
-        return self._winner
-
     def get_action_status(self):
         return self._actions[self._status].get_status()
 
@@ -240,7 +235,7 @@ class FsmGioco(metaclass=ABCMeta):
             if c == None:
                 raise Exception("Carta non specificata")
 
-            self._game_man.cala_in_tavola(player, c, self._globals.get_instant())
+            self._game_man.cala_in_tavola(player, c, self._globals.get_instant_pos())
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
         return c
@@ -248,6 +243,12 @@ class FsmGioco(metaclass=ABCMeta):
     def get_deck(self, deck, ppos=None):
         try:
             return self._game_man.get_deck(deck, ppos)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_list_ca(self, deck, ppos=None):
+        try:
+            return self._game_man.get_list_ca(deck, ppos)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -263,7 +264,7 @@ class FsmGioco(metaclass=ABCMeta):
         try:
             assert player is not None
             if c is not None:
-                self._game_man.cala_in_tavola(player, c, self._globals.get_instant())
+                self._game_man.cala_in_tavola(player, c, self._globals.get_instant_pos())
                 self._game_man.marca_punti_carta(player, c)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -272,32 +273,34 @@ class FsmGioco(metaclass=ABCMeta):
         try:
             if player == None:
                 player = self.get_player()
-            if coperta == False:
-                echo_message(str(player) + " (" + player.get_position() + ")" + _(" riceve " + str(c) + " ."))
-            else:
-                echo_message(str(player) + " (" + player.get_position() + ")" + _(" riceve " + str(c) + "."))
-            self.move_card_and_repos(c, None, DeckId.DECK_MANO, coperta, player)
+            #if coperta == False:
+            #    echo_message(str(player) + " (" + player.get_position() + ")" + _(" riceve " + str(c) + " ."))
+            #else:
+            #    echo_message(str(player) + " (" + player.get_position() + ")" + _(" riceve " + str(c) + "."))
+            self.sposta_e_stendi(c, None, DeckId.DECK_MANO, coperta, player)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def dai_al_giocatore(self, player, n, coperta=True, hoverable=False):
+    def dai_al_giocatore(self, player, n, fronte=FRONTE_COPERTA, hoverable=False):
         try:
             assert player is not None
 
             ca = self._game_man.preleva_dal_mazzo(n)
             if ca is not None and len(ca) > 0:
                 if len(ca) == 1:
-                    if coperta == False:
+                    if fronte == FRONTE_SCOPERTA:
                         echo_message(str(player) + " (" + player.get_position() + ")" + _(" riceve una carta scoperta"))
                     else:
                         echo_message(str(player) + " (" + player.get_position() + ")" + _(" riceve una carta"))
                 else:
-                    if coperta == False:
+                    if fronte == FRONTE_SCOPERTA:
                         echo_message(str(player) + " (" + player.get_position() + ")" + _(" riceve ") + str(len(ca)) + " carte scoperte")
                     else:
                         echo_message(str(player) + " (" + player.get_position() + ")" + _(" riceve ") + str(len(ca)) + " carte")
-                self._game_man.add_mano_giocatore(player, ca, coperta, hoverable)
-            return ca
+
+                for c in ca:
+                    c.set_hoverable(hoverable)
+                    self.inserisci_nel_mazzo(c, DeckId.DECK_MANO, fronte, player.get_position())
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -342,8 +345,15 @@ class FsmGioco(metaclass=ABCMeta):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def raccogli_carte_calate(self, winner, player):
-        return self._game_man.raccogli_carte_calate(winner, player)
+    def raccogli_carte(self, winner, player, bonus=False):
+        try:
+            if bonus:
+                return self._game_man.raccogli_carte_avversari(winner, player)
+            else:
+                return self._game_man.raccogli_carte_casa(winner, player)
+
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
     def step_ready(self):
         try:
@@ -394,18 +404,24 @@ class FsmGioco(metaclass=ABCMeta):
     Game manager wrappers
     '''
     def set_giocatori(self, giocatori):
-        self._game_man.set_giocatori(giocatori)
+        try:
+            self._game_man.set_giocatori(giocatori)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
     def get_giocatori(self):
-        return self._game_man.get_giocatori()
+        try:
+            return self._game_man.get_giocatori()
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
     def get_carte_mano(self, player):
         return self._game_man.get_carte_mano(player)
 
     def set_lato_mazzo(self, deck, coperta):
         try:
-            for c in self.get_deck(deck):
-                self._game_man.set_fronte(c, coperta, self._globals.get_instant())
+            for c in self.get_list_ca(deck):
+                self._game_man.set_fronte(c, coperta, self._globals.get_instant_pos())
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -418,12 +434,6 @@ class FsmGioco(metaclass=ABCMeta):
     def ricomponi_taglio(self, player):
         self._game_man.ricomponi_taglio(player)
 
-    def mostra_in_tavola(self, c, pos, inst):
-        self._game_man.mostra_in_tavola(c, pos, inst)
-
-    def mostra_taglio(self, ppos=None):
-        self._game_man.mostra_taglio(ppos)
-
     def raddrizza_mazzo(self):
         self._game_man.raddrizza_mazzo()
 
@@ -435,9 +445,6 @@ class FsmGioco(metaclass=ABCMeta):
 
     def read_carta(self, i, deck, player):
         return self._game_man.read_carta(i, deck, player)
-
-    def set_mazzo_ultima(self):
-        self._delegate_set_mazzo_ultima(self._game_man.get_deck())
 
     def clear_carte_in_tavola(self, posizione):
         return self._game_man.clear_carte_in_tavola(posizione)
@@ -458,13 +465,16 @@ class FsmGioco(metaclass=ABCMeta):
     def append_fola(self, c):
         return self._game_man.append_fola(c)
 
-    def fai_la_fola(self):
-        self._game_man.fai_la_fola()
-
-    def inserisci_nel_mazzo(self, c, deck=DeckId.DECK_MAZZO, ppos=None):
+    def change_deck(self, deck_src, ppos_src, deck_dst, ppos_dst):
         try:
-            self._game_man.inserisci_nel_mazzo(c, deck, ppos)
-            self.update_deck_display(deck, ppos)
+            self._game_man.change_deck(deck_src, ppos_src, deck_dst, ppos_dst)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def inserisci_nel_mazzo(self, c, deck=DeckId.DECK_MAZZO, fronte=FRONTE_COPERTA, ppos=None):
+        try:
+            self._game_man.inserisci_nel_mazzo(c, deck, fronte, ppos)
+            self._game_man.show_deck_plain(deck, ppos)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -474,8 +484,8 @@ class FsmGioco(metaclass=ABCMeta):
     def preleva_dal_mazzo(self, n):
         return self._game_man.preleva_dal_mazzo(n)
 
-    def deck_contains(self, cid, deck=DeckId.DECK_MAZZO, player=None):
-        return self._game_man.deck_contains(cid, deck, player)
+    def deck_contains(self, c, deck=DeckId.DECK_MAZZO, player=None):
+        return self._game_man.deck_contains(c.get_id(), deck, player)
 
     def has_carta(self, player, cid):
         return self._game_man.has_carta(player, cid)
@@ -483,11 +493,35 @@ class FsmGioco(metaclass=ABCMeta):
     def restore_manche(self):
         return self._game_man.restore_manche()
 
-    def get_carte_rubate(self, player):
-        return self._game_man.get_carte_rubate(player)
+    def get_carte(self, deck, player=None):
+        try:
+            if player is None:
+                player = self.get_player()
+            return self._game_man.get_list_ca(deck, player.get_position())
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
-    def get_num_carte_mano(self, player):
-        return self._game_man.get_num_carte_mano(player)
+    def get_carte_rubate(self, player):
+        try:
+            if player is None:
+                player = self.get_player()
+            return self.get_carte(DeckId.DECK_RUBATE, player)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_deck_len(self, deck=DeckId.DECK_MANO, player=None):
+        try:
+            if player is None:
+                player = self.get_player()
+            return self._game_man.get_deck_len(deck, player)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def deck_contains(self, deck, c, player=None):
+        try:
+            return self._game_man.deck_contains(c.get_id(), deck, player)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
     def get_num_carte_prese(self, player):
         return self._game_man.get_num_carte_prese(player)
@@ -495,17 +529,15 @@ class FsmGioco(metaclass=ABCMeta):
     def restore_manche(self):
         return self._game_man.restore_manche()
 
-    def get_giocatori(self):
-        return self._game_man.get_giocatori()
-
-    def player_has_carta(self, player, cid):
-        return self._game_man.has_carta(player, cid)
+    def player_has_carta(self, player, c):
+        return self.deck_contains(DeckId.DECK_MANO, c, player) or\
+               self.deck_contains(DeckId.DECK_RUBATE, c, player)
 
     def get_carta(self, cid):
         return self._game_man.cid_to_carta(cid)
 
     def get_carte_in_tavola(self):
-        return self._game_man.get_carte_in_tavola()
+        return self._game_man.get_all_tavola()
 
     def get_carte_in_tavola_pos(self, posizione):
         return self._game_man.get_carte_in_tavola_pos(posizione)
@@ -517,7 +549,10 @@ class FsmGioco(metaclass=ABCMeta):
         return self._game_man.get_mazziere()
 
     def mostra_mazzo(self, deck=DeckId.DECK_MAZZO, ppos=None, n=None):
-        return self._game_man.mostra_mazzo(deck, ppos, n)
+        return self._game_man.show_deck_packed(deck, ppos, n)
+
+    def set_deck_visible(self, deck=DeckId.DECK_MAZZO, ppos=None, enable=True):
+        return self._game_man.set_deck_visible(deck, ppos, enable)
 
     def get_position_turno(self, ppos=None, deck=DeckId.DECK_MAZZO):
         return self._game_man.get_position_turno(ppos, deck)
@@ -537,8 +572,12 @@ class FsmGioco(metaclass=ABCMeta):
     def get_position_turno(self):
         return self._game_man.get_position_turno()
 
-    def passa_fola(self, player):
-        return self._game_man.passa_fola(player)
+    def passa_fola(self, player, fronte=FRONTE_SCOPERTA):
+        if not self.simulated():
+            self.mostra_fola(player, fronte)
+        else:
+            self.mostra_fola(player, FRONTE_COPERTA)
+        return self._game_man.passa_fola(player, fronte)
 
     def nascondi_fola(self, player):
         return self._game_man.nascondi_fola(player)
@@ -546,8 +585,14 @@ class FsmGioco(metaclass=ABCMeta):
     def mostra_scarto(self, player):
         return self._game_man.mostra_scarto(player)
 
-    def mostra_fola(self, player):
-        return self._game_man.mostra_fola(player)
+    def mostra_pozzo(self, player):
+        return self._game_man.mostra_pozzo(player)
+
+    def mostra_fola(self, player, fronte=FRONTE_SCOPERTA):
+        try:
+            return self._game_man.mostra_fola(player, fronte)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
     def set_postazioni(self, ppos):
         self._game_man.set_postazioni(ppos)
@@ -567,20 +612,55 @@ class FsmGioco(metaclass=ABCMeta):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def scopri_carta(self, c):
+        return self._game_man.scopri_carta(c)
+
     def scopri_carte(self, player):
         return self._game_man.scopri_carte(player)
 
-    def update_deck_display(self, deck_dst, ppos=None):
+    def attiva_carte(self, deck, player=None):
         try:
-            self._game_man.stendi_deck(deck_dst, ppos)
+            self._game_man.set_deck_enabled(deck, player.get_position())
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def move_card_and_repos(self, c, deck_src, deck_dst, fronte=FRONTE_SCOPERTA, player=None):
+    def show_deck_packed(self, deck=DeckId.DECK_MAZZO, fronte=FRONTE_SCOPERTA, player=None):
+        try:
+            if player is None:
+                player = self.get_player()
+            self._game_man.show_deck_packed(deck, player.get_position(), fronte)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def show_deck_plain(self, deck=DeckId.DECK_MAZZO, fronte=FRONTE_SCOPERTA, player=None):
+        try:
+            if player is None:
+                player = self.get_player()
+            self._game_man.show_deck_plain(deck, player.get_position(), fronte)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def sposta_e_stendi(self, c, deck_src, deck_dst, fronte=FRONTE_SCOPERTA, player=None):
         try:
             self._game_man.sposta_carta(c, deck_src, deck_dst, player)
-            self._game_man.set_fronte(c, fronte, self._globals.get_instant())
-            self.update_deck_display(deck_dst, player.get_position())
+            self._game_man.set_fronte(c, fronte, self._globals.get_instant_pos())
+            self._game_man.show_deck_plain(deck_dst, player.get_position(), fronte)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def sposta_e_raccogli(self, c, deck_src, deck_dst, fronte=FRONTE_SCOPERTA, player=None):
+        try:
+            self._game_man.sposta_carta(c, deck_src, deck_dst, player)
+            self._game_man.set_fronte(c, fronte, self._globals.get_instant_pos())
+            self._game_man.show_deck_packed(deck_dst, player.get_position(), fronte)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def sposta_e_nascondi(self, c, deck_src, deck_dst, fronte=FRONTE_SCOPERTA, player=None):
+        try:
+            self._game_man.sposta_carta(c, deck_src, deck_dst, player)
+            self._game_man.set_fronte(c, fronte, self._globals.get_instant_pos())
+            c.set_visible(False)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -597,3 +677,6 @@ class FsmGioco(metaclass=ABCMeta):
             self._act_giro.on_event(evt)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+
+    def reprJSON(self):
+        return "QQQQQQ"
