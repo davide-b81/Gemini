@@ -29,6 +29,7 @@ class Action(metaclass=ABCMeta):
 
 
     def __init__(self, fsm):
+        assert fsm is not None
         self._status = self.ACTSTATUS_START
         self._newsts = self.ACTSTATUS_START
         self._fsm = fsm
@@ -103,6 +104,7 @@ class Action(metaclass=ABCMeta):
                 s = 0.1
             if not onlysim or self.simulated():
                 self._wait_delay = monotonic() + s
+                echo_message("Attende " + str(s) + " secondi")
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -139,8 +141,10 @@ class Action(metaclass=ABCMeta):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def show_timed_popup(self, txt, tout=0.5):
+    def show_timed_popup(self, txt, tout=3):
         try:
+            if self._globals.get_quick():
+                tout=0.05
             self.show_popup(txt)
             if self._globals.get_autoclose():
                 # Autoclose popup

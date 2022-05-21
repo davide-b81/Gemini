@@ -25,8 +25,7 @@ class SpriteCarta(MySprite):
     classdocs
     '''
     ROTATE_STEP = 10
-    MOVE_STEP = 18
-    REFRESH_PERIOD = 0.02
+    REFRESH_PERIOD = 0.1
 
     _cid = None
     img_back = None

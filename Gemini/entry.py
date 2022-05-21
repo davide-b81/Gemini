@@ -4,6 +4,9 @@ Created on 31 dic 2021
 @author: david
 '''
 import sys
+
+from pygame import HWSURFACE, DOUBLEBUF, RESIZABLE
+
 from main.globals import *
 from main.gestore import *
 from grafica.sprite_carta import *
@@ -25,6 +28,7 @@ slider = None
 root = None
 gestore = None
 surface = None
+_globals = Globals()
 
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (0, 0)
 
@@ -41,7 +45,7 @@ def on_init(debug):
     global font
     global screen
     global running
-    global text_boxes
+    global _globals
     global root
     global gestore
     global surface
@@ -49,11 +53,16 @@ def on_init(debug):
     try:
         pygame.init()
         pygame.display.set_caption('Minchiate Fiorentine')
-        #screen = pygame.display.set_mode((0, 0), HWSURFACE | DOUBLEBUF | RESIZABLE | pygame.FULLSCREEN)
-        (width, height) = (1920, 1050)
-        screen = pygame.display.set_mode((width, height))
+        if _globals.get_fullscreen():
+            screen = pygame.display.set_mode((0, 0), HWSURFACE | DOUBLEBUF | RESIZABLE | pygame.FULLSCREEN)
+        else:
+            (width, height) = (1920, 1050)
+            screen = pygame.display.set_mode((width, height))
+
         surface = pygame.Surface((screen.get_width(), screen.get_height()))
         gestore = Gestore(screen, debug)
+        gestore.set_delegate_exit(on_exit)
+        gestore.set_delegate_run(on_run)
         running = True
     except Exception as e:
         ExceptionMan.manage_exception("", e, True)
@@ -70,10 +79,19 @@ def on_exit():
     try:
         global running
         running = False
+        print("Quit application")
     except Exception as e:
         ExceptionMan.manage_exception("", e, True)
 
 def on_run():
+    global running
+    try:
+        print("Start game")
+        running = True
+    except Exception as e:
+        ExceptionMan.manage_exception("", e, True)
+
+def on_exec():
     global running
     global gestore
     global surface
@@ -81,7 +99,10 @@ def on_run():
     try:
         check_events()
 
-        running = gestore.on_update()
+        if gestore != None:
+            gestore.on_update()
+
+            gestore.on_update_ui()
 
         pygame.display.update()
 
@@ -98,11 +119,16 @@ def check_events():
     global gestore
 
     try:
-        assert gestore != None
-
         for evt in pygame.event.get():
-            gestore.event_handler(evt)
 
+            if evt.type == pygame.QUIT:
+                on_exit()
+
+            if gestore != None:
+                gestore.event_handler(evt)
+
+                # Consume event
+                gestore.process_events(evt)
     except Exception as e:
         ExceptionMan.manage_exception("", e, True)
 
@@ -114,7 +140,7 @@ if __name__ == '__main__':
         on_init(False)
 
         while running == True:
-            running = on_run()
+            running = on_exec()
     except Exception as e:
         echo_message(e.args[0])
         sys.exit(-1)

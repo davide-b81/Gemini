@@ -1,6 +1,10 @@
 from enum import Enum, IntEnum
 from main.exception_man import ExceptionMan
 
+class Qualita(Enum):
+    CARTA_DICONTO = 0,
+    CARTA_CONTO_0 = 1
+
 class Palo(Enum):
     BASTONI = 0,
     COPPE = 1,
@@ -135,6 +139,12 @@ class CartaId(IntEnum):
         if self.__class__ is other.__class__:
             return self.value < other.value
         return NotImplemented
+
+    def __repr__(self):
+        return str(self.name)
+
+    def __str__(self):
+        return str(self.name)
 
 cartiglie = [CartaId.DANAR_A, CartaId.DANAR_2, CartaId.DANAR_3, CartaId.DANAR_4, CartaId.DANAR_5, CartaId.DANAR_6,
              CartaId.DANAR_7, CartaId.DANAR_8, CartaId.DANAR_9, CartaId.DANAR_X, CartaId.DANAR_F, CartaId.DANAR_C,
@@ -409,21 +419,23 @@ def count_seme(ca, seme):
     except Exception as e:
         ExceptionMan.manage_exception("", e, True)
 
-def seme_carta(a):
+def seme_carta(cid):
     global denari, spade, coppe, bastoni, tarocco
     try:
-        if a in denari:
+        if cid in denari:
             return Palo.DENARI
-        elif a in spade:
+        elif cid in spade:
             return Palo.SPADE
-        elif a in coppe:
+        elif cid in coppe:
             return Palo.COPPE
-        elif a in bastoni:
+        elif cid in bastoni:
             return Palo.BASTONI
-        else:
+        elif cid in tarocco:
             return Palo.TRIONFO
+        else:
+            raise Exception("Impossibile determinare il seme di " + str(cid))
     except Exception as e:
-        ExceptionMan.manage_exception(str(a), e, True)
+        ExceptionMan.manage_exception("", e, True)
     return None
 
 def get_seme(cid):
@@ -450,7 +462,7 @@ def get_numerale(id):
     except Exception as e:
         ExceptionMan.manage_exception("", e, True)
 
-def get_greater(clist):
+def get_greatest_card(clist):
     try:
         g = None
         for c in clist:

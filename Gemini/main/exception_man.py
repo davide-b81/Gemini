@@ -3,11 +3,9 @@ Created on 9 gen 2022
 
 @author: david
 '''
-from logging import critical
-
-from main.globals import *
-import traceback
 import sys, os
+from logging import critical
+import traceback
 
 # debug()
 # info()

@@ -2,7 +2,14 @@
 Created on 7 gen 2022
 
 @author: david
-'''
+'''#
+from time import monotonic
+from importlib.resources import _
+from main.globals import *
+from main.exception_man import ExceptionMan
+from game.germini.strategia import Strategia
+from decks.carta import Carta
+from decks.mazzo import Mazzo
 from game.germini.action_distribuzione import ActionDistribuzione
 from game.germini.action_fola import ActionFola
 from game.germini.action_partita import ActionPartita
@@ -10,26 +17,37 @@ from game.germini.action_mescola import ActionMescola
 from game.germini.action_punteggi import ActionPunteggi
 from game.germini.action_taglia import ActionTaglia
 from game.germini.versicole_manager import VersicoleManager
-from main.globals import *
 from game.fsm_gioco import FsmGioco
-from time import monotonic
-from game.germini.strategia import Strategia
-from oggetti.posizioni import DeckId
-from oggetti.stringhe import _
+
+#from oggetti.posizioni import *
+#from oggetti.stringhe import _
 from decks.carta_id import *
 from game.germini.punteggi import carte_conto, carte_sopraventi
+
+
+def conteggia_mazzetti(deck):
+    try:
+        i = 0
+        while len(deck) > 0 and i < 14:
+            cartaP = deck.pop_carta(Qualita.CARTA_DICONTO)
+            carta1 = deck.pop_carta(Qualita.CARTA_CONTO_0)
+            carta2 = deck.pop_carta(Qualita.CARTA_CONTO_0)
+            if carta2 is None or carta1 is None or cartaP is None:
+                break
+            else:
+                i = i + 1
+
+        return len(deck)
+    except Exception as e:
+        ExceptionMan.manage_exception("", e, True)
 
 
 class FsmGermini(FsmGioco):
     '''
     classdocs
     '''
-    mostrata = None
-    numero_giocatori = 4
-    _taglio = None
     _strategia = None
     _versicole = {}
-
     STATUS_PUNTEGGI = "STATUS_PUNTEGGI"
     STATUS_DISTRIBUZIONE = "STATUS_DISTRIBUZIONE"
     STATUS_CADE = "STATUS_CADE"
@@ -59,12 +77,10 @@ class FsmGermini(FsmGioco):
             self.add_state(self.STATUS_FOLA, self.fola)
             self.add_state(self.STATUS_PARTITA, self.partita)
             self.add_state(self.STATUS_PUNTEGGI, self.punteggio)
-            self.mostrata = None
             self.set_postazioni([POSTAZIONE_NORD, POSTAZIONE_EST, POSTAZIONE_SUD, POSTAZIONE_OVEST])
             self._t_sub_status = monotonic()
-            self._taglio = {}
-            self._strategia = Strategia(self._game_man)
 
+            self._strategia = Strategia(self, self._game_man)
             for ppos in self._game_man.get_postazioni():
                 self._versicole[ppos] = VersicoleManager()
         except Exception as e:
@@ -87,7 +103,6 @@ class FsmGermini(FsmGioco):
             if self.step_ready():
                 echo_message("================ INIZIO =================")
                 self._append_html_text("<p>================ INIZIO =================</p>")
-                self.mostrata = None
                 self._game_man.pulisci_tavola()
                 self.new_status = FsmGioco.STATUS_DISTRIBUZIONE
         except Exception as e:
@@ -96,10 +111,6 @@ class FsmGermini(FsmGioco):
     def inizio(self):
         try:
             if self.step_ready():
-                self._taglio[Palo.BASTONI] = False
-                self._taglio[Palo.COPPE] = False
-                self._taglio[Palo.SPADE] = False
-                self._taglio[Palo.DENARI] = False
                 self._cid_apertura = None
                 self._status_next = FsmGioco.STATUS_GIRO
         except Exception as e:
@@ -136,18 +147,16 @@ class FsmGermini(FsmGioco):
         try:
             if player is None:
                 player = self.get_player()
-            self.move_card_and_repos(c, DeckId.DECK_MANO, DeckId.DECK_POZZO, FRONTE_COPERTA, player)
+            self.sposta_e_nascondi(c, DeckId.DECK_MANO, DeckId.DECK_SCARTO, FRONTE_COPERTA, player)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def scarta_sub(self, cid):
+    def scarta_sub(self, player, c):
         try:
-            c = self.get_carta(cid)
-            player = self.get_player()
-            rubate = self.get_deck(DeckId.DECK_RUBATE, player.get_position())
-            if self.player_has_carta(self.get_player(), c.get_id()):
+            rubate = self.get_list_ca(DeckId.DECK_RUBATE, player.get_position())
+            if self.player_has_carta(player, c):
                 self.giocatore_scarta_carta(c, player)
-                self.move_card_and_repos(rubate[0], DeckId.DECK_RUBATE, DeckId.DECK_MANO, FRONTE_SCOPERTA, player)
+                self.sposta_e_stendi(rubate[0], DeckId.DECK_RUBATE, DeckId.DECK_MANO, None, player)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -157,10 +166,7 @@ class FsmGermini(FsmGioco):
                 player = self.get_player()
             c = Strategia.scarta_carta(player)
             echo_message(_(str(player) + " scarta " + str(c)))
-            self.sposta_carta(c, DeckId.DECK_MANO, DeckId.DECK_POZZO, player)
-            # Sposta le rubate tra le carte in mano
-            r = self._game_man.get_carte_rubate(player)[0]
-            self.sposta_carta(r, DeckId.DECK_RUBATE, DeckId.DECK_MANO, player)
+            self.scarta_sub(player, c)
             return c
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -240,23 +246,6 @@ class FsmGermini(FsmGioco):
      catturata dal compagno, si dice che muore in casa e non vale come extra.
     '''
 
-    '''
-    (). Al termine di ognuna delle quattro partite che formano un giro, il punteggio viene così calcolato:
-     Ogni coppia riunisce le prese fatte e pone sotto a ciascuna carta di conto due carte senza valore (cartiglie,
-     tarocchini o sopraventi) creando così tanti mazzetti di tre carte ciascuno. A partire dal quattordicesimo mazzetto
-     tutte le carte, anche quelle senza valore, valgono un punto. Supponiamo ad esempio che una coppia abbia preso 64
-     carte, 17 delle quali sono carte di conto. Poiché i primi 14 mazzetti (dei 17 fatti) contengono 14x3=42 carte,
-     la coppia guadagna 64-42=22 punti; Dopo questi punti vengono quindi calcolati quelli delle versicole;
-     si ricordi che la coppia che ha preso il matto ne aggiunge il valore a tutte le versicole fatte. La coppia che ha
-     fatto l'ultima presa aggiungerà per questa dieci punti. Si contano poi le carte di conto, Matto incluso, iniziando
-     di solito dai Papi e dai Re; si sommano a questo risultato i punti segnati durante il gioco e viene infine
-     calcolata la differenza fra i punteggi conseguiti dalle due coppie. 60 punti di differenza costituiscono un resto.
-     Un resto viene pagato immediatamente in base a quanto concordato prima dell'inizio del gioco.
-     Al termine del gioco anche un solo punto costituisce un resto così da 61 a 120 punti valgono due resti,
-     da 121 a 180 tre e così via. Nell'altamente improbabile caso che una coppia non effettui neppure una presa,
-     la perdita viene raddoppiata e il punteggio del gioco è fissato a 2x7=14 resti oltre al punteggio già fatto che
-     viene anch'esso raddoppiato. I resti in precedenza già realizzati e pagati non vengono invece raddoppiati.
-    '''
     def punteggio(self):
         try:
             pass #self.exe_status_update(FsmGermini.STATUS_CONTEGGIO, FsmGermini.STATUS_FINEMANO)
@@ -304,12 +293,6 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def gioca_prima_carta(self, player):
-        try:
-            return Strategia.gioca_prima_carta(player)
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
     def gioca_carta_caduto(self, player, caduto):
         try:
             return Strategia.gioca_carta_caduto(player, caduto)
@@ -354,7 +337,7 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
             elif is_tarocco(self._cid_apertura):
                 if is_tarocco(cid):
                     return True
-                elif not self._game_man.has_seme(player, get_seme(Palo.TRIONFO)):
+                elif not self._game_man.has_seme(player, Palo.TRIONFO):
                     return True
                 else:
                     return False
@@ -391,7 +374,7 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
             elif is_tarocco(self._cid_apertura):
                 if is_tarocco(cid):
                     return True
-                elif not self._game_man.has_seme(self.get_player(), get_seme(Palo.TRIONFO)):
+                elif not self._game_man.has_seme(self.get_player(), Palo.TRIONFO):
                     return True
                 else:
                     return False
@@ -409,7 +392,7 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
                         if self.cascare_enabled(self.get_player()):
                             return True
                         else:
-                            print("CADE " +str(self.get_player()))
+                            print("CADE " + str(self.get_player()))
                             #self.on_cade(self.get_player())
                         return True
             else:
@@ -472,7 +455,7 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
 
     def carte_da_conto_in_deck(self, deck):
         try:
-            d = self.get_deck(deck)
+            d = self.get_list_ca(deck)
             for c in d:
                 if c.get_id() in carte_conto:
                     return False
@@ -513,7 +496,37 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def punteggio_coppia(self, ppos):
+    def get_num_resti(self, diff):
+        res = 0
+        while diff > 0:
+            if diff > 0:
+                res = res + 1
+            diff = diff - 60
+        return res
+
+    def get_resti_coppia(self):
+        try:
+            ptsNS = self.get_punti_coppia(POSTAZIONE_NORD)
+            ptsEO = self.get_punti_coppia(POSTAZIONE_EST)
+
+            rNS = 0
+            rEO = 0
+            diff = abs(ptsNS-ptsEO)
+            r = self.get_num_resti(diff)
+            if ptsNS == 0:
+                # Nel caso in cui una coppia non abbia fatto neanche una presa
+                rEO = max(14, r)
+            elif ptsEO == 0:
+                rNS = max(14, r)
+            elif ptsNS >= ptsEO:
+                rNS = self.get_num_resti(diff)
+            else:
+                rEO = self.get_num_resti(diff)
+            return (rNS, rEO)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_punti_coppia(self, ppos):
         try:
             pts = 0
             (p1, p2) = self.get_coppia(ppos)
@@ -543,6 +556,8 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
             self._versicole[player.get_position()].reset()
             ca = self.get_carte_mano(player)
             self._versicole[player.get_position()].riempi(ca)
+            ca = self.get_carte_rubate(player)
+            self._versicole[player.get_position()].riempi(ca)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -566,12 +581,92 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def assegna_resti(self, ppos, resti):
+        try:
+            player = self._game_man.get_player_at_pos(ppos)
+            player.add_resti(resti)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def on_restore_mano(self):
+        try:
+            for p in self._game_man.get_giocatori():
+                p.on_fine_mano()
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def conteggia_mazzetti_ns(self):
+        try:
+            lista = []
+            d1 = self.get_deck(DeckId.DECK_PRESE, POSTAZIONE_NORD)
+            d2 = self.get_deck(DeckId.DECK_PRESE, POSTAZIONE_SUD)
+            lista.append(d1.get_carte())
+            lista.append(d2.get_carte())
+            return conteggia_mazzetti(lista)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def conteggia_mazzetti_eo(self):
+        try:
+            lista = []
+            d1 = self.get_deck(DeckId.DECK_PRESE, POSTAZIONE_EST)
+            d2 = self.get_deck(DeckId.DECK_PRESE, POSTAZIONE_OVEST)
+            d1 <<= d2
+            return conteggia_mazzetti(d1)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def on_fine_mano(self, winner):
+        try:
+            """
+            (). La coppia che ha fatto l'ultima presa aggiungerà per questa dieci punti.
+            """
+            print(str(winner) + " + 10 punti per l'ultima presa")
+            self._game_man.marca_punti(winner, 10)
+            """
+            (). Al termine di ognuna delle quattro partite che formano un giro, il punteggio viene così calcolato:
+             Ogni coppia riunisce le prese fatte e pone sotto a ciascuna carta di conto due carte senza valore (cartiglie,
+             tarocchini o sopraventi) creando così tanti mazzetti di tre carte ciascuno. A partire dal quattordicesimo mazzetto
+             tutte le carte, anche quelle senza valore, valgono un punto. Supponiamo ad esempio che una coppia abbia preso 64
+             carte, 17 delle quali sono carte di conto. Poiché i primi 14 mazzetti (dei 17 fatti) contengono 14x3=42 carte,
+             la coppia guadagna 64-42=22 punti; Dopo questi punti vengono quindi calcolati quelli delle versicole;
+             si ricordi che la coppia che ha preso il matto ne aggiunge il valore a tutte le versicole fatte. 
+            """
+            pts = self.conteggia_mazzetti_ns()
+            if pts != 0:
+                print("Coppia N-S " + str(pts) + " punti per le carte oltre i 14 mazzetti")
+                self._game_man.marca_punti(self.get_player_at_pos(POSTAZIONE_NORD), pts)
+
+            pts = self.conteggia_mazzetti_eo()
+            if pts != 0:
+                print("Coppia E-O " + str(pts) + " punti per le carte oltre i 14 mazzetti")
+                self._game_man.marca_punti(self.get_player_at_pos(POSTAZIONE_SUD), pts)
+
+            """
+             Si contano poi le carte di conto, Matto incluso, iniziando
+             di solito dai Papi e dai Re; si sommano a questo risultato i punti segnati durante il gioco e viene infine
+             calcolata la differenza fra i punteggi conseguiti dalle due coppie. 60 punti di differenza costituiscono un resto.
+             Un resto viene pagato immediatamente in base a quanto concordato prima dell'inizio del gioco.
+             Al termine del gioco anche un solo punto costituisce un resto così da 61 a 120 punti valgono due resti,
+             da 121 a 180 tre e così via. Nell'altamente improbabile caso che una coppia non effettui neppure una presa,
+             la perdita viene raddoppiata e il punteggio del gioco è fissato a 2x7=14 resti oltre al punteggio già fatto che
+             viene anch'esso raddoppiato. I resti in precedenza già realizzati e pagati non vengono invece raddoppiati.
+            """
+            (rNS, rEO) = self.get_resti_coppia()
+            self.assegna_resti(POSTAZIONE_NORD, rNS)
+            self.assegna_resti(POSTAZIONE_SUD, rNS)
+            self.assegna_resti(POSTAZIONE_EST, rEO)
+            self.assegna_resti(POSTAZIONE_OVEST, rEO)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def marca_punti_versicole(self, c, player=None):
         try:
             if player == None:
                 player = self.get_player()
             pts = self._versicole[player.get_position()].get_punti_totali()
             self._game_man.marca_punti(player, pts)
+            return pts
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -579,7 +674,7 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
         try:
             if player is None:
                 player = self._game_man.get_player()
-            d = self.get_deck(DeckId.DECK_FOLA, player.get_position())
+            d = self.get_list_ca(DeckId.DECK_FOLA, player.get_position())
             for c in d:
                 if c.get_id() in carte_conto or c.get_id() in carte_sopraventi:
                     return True
@@ -587,37 +682,67 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def scartare(self, player=None):
+    def get_num_scarti(self, player=None):
         try:
             if player is None:
                 player = self._game_man.get_player()
-            ret = len(self.get_carte_rubate(player))
-            return ret
+            return self.get_deck_len(DeckId.DECK_RUBATE, player)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_text_resti(self):
+        try:
+            return self._game_man.get_text_resti()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def get_text_punti_mano(self):
         try:
             txt = "<p>Punteggi mano:<br/>"
-            pts = self.punteggio_coppia(POSTAZIONE_NORD)
-            (p1, p2) = self.get_coppia(POSTAZIONE_NORD)
-            if p1 is not None and p2 is not None:
-                txt = txt + str(p1) + "-" + str(p2) + ": " + str(p1.get_punti_mano() + p2.get_punti_mano()) + "<br/>"
-            self.punteggio_coppia(POSTAZIONE_EST)
-            (p1, p2) = self.get_coppia(POSTAZIONE_EST)
-            if p1 is not None and p2 is not None:
-                txt = txt + str(p1) + "-" + str(p2) + ": " + str(p1.get_punti_mano() + p2.get_punti_mano()) + "<br/>"
+            ptsNS = self.get_punti_coppia(POSTAZIONE_NORD)
+            (pN, pS) = self.get_coppia(POSTAZIONE_NORD)
+            if pN is not None and pS is not None:
+                txt = txt + str(pN) + "-" + str(pS) + ": " + str(ptsNS) + "<br/>"
+            ptsEO = self.get_punti_coppia(POSTAZIONE_EST)
+            (pE, pO) = self.get_coppia(POSTAZIONE_EST)
+            if pE is not None and pO is not None:
+                txt = txt + str(pE) + "-" + str(pO) + ": " + str(ptsEO) + "<br/>"
             txt = txt + "</p>"
             return txt
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def get_text_punti_totale(self):
+    def get_winner(self):
         try:
-            txt = "<p>Punteggi totali:<br/>"
-            for p in self._game_man.get_giocatori():
-                txt = txt + str(p) + ": " + str(p.get_punti_partite()) + "<br/>"
-            txt = txt + "</p>"
-            return txt
+            ca = self._game_man.get_deck_pos(DeckId.DECK_TAVOLA)
+            c_s = ca[POSTAZIONE_SUD]
+            c_n = ca[POSTAZIONE_NORD]
+            c_w = ca[POSTAZIONE_OVEST]
+            c_e = ca[POSTAZIONE_EST]
+
+            c_win = get_greatest_card(self.get_carte_in_tavola())
+
+            if c_win in c_s:
+                winner = self.get_player_at_pos(POSTAZIONE_SUD)
+            elif c_win in c_w:
+                winner = self.get_player_at_pos(POSTAZIONE_OVEST)
+            elif c_win in c_n:
+                winner = self.get_player_at_pos(POSTAZIONE_NORD)
+            elif c_win in c_e:
+                winner = self.get_player_at_pos(POSTAZIONE_EST)
+            else:
+                echo_message("Warning no winner")
+                return (None, None)
+            return (winner, c_win)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+
+    def reprJSON(self):
+        return "PPPP"
+
+if __name__ == '__main__':
+    man = FsmGermini()
+    try:
+        print(man.reprJSON())
+    except Exception as e:
+        ExceptionMan.manage_exception("", e, True)

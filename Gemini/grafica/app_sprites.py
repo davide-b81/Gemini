@@ -98,6 +98,12 @@ class SpriteManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def get_sprite_carta(self, cid):
+        try:
+            return self.sprite_dic[str(cid)]
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def get_stable(self):
         try:
             return self.stable_sprites()
@@ -106,6 +112,7 @@ class SpriteManager(object):
 
     def set_z(self, cid, z):
         try:
+            print("z=" + str(cid))
             self.sprite_dic[str(cid)].set_z(z)
             self.update_sprite_list()
         except Exception as e:
@@ -154,19 +161,6 @@ class SpriteManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def update_show_index(self, i, j):
-        try:
-            """update_show_index(a, b) -> (i, j)
-            Calcola l'indice per il posizionamento di carte sovrapposte (a gruppi di 10)
-            """
-            i = i + 1
-            if i >= 10:
-                i = 0
-                j = j + 1
-            return (i, j)
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
     def show_token(self, name, ppos, visible=True):
         try:
             (x, y) = (0, 0)
@@ -186,7 +180,17 @@ class SpriteManager(object):
                             (x, y) = self.pos_man.get_pos_elemento(ElementoId.ELEMENTO_TOKEN_TUR, ppos)
                         else:
                             (x, y) = (0, 0)
-                        self._extern_sprites[name].move_to(x, y)
+                        self._extern_sprites[name].set_position((x, y), True)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def show_carta(self, spr, coord, inst):
+        try:
+            ppos = self.pos_man.get_area_tavola(coord)
+            spr.set_z(0)
+            spr.set_position(ppos, inst)
+            spr.scopri()
+            spr.mostra()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -195,12 +199,8 @@ class SpriteManager(object):
             if cctav != None:
                 if len(cctav) != 0:
                     for ca in cctav:
-                        ppos = self.pos_man.get_area_tavola(coord)
+                        self.show_carta(self.sprite_dic[ca.get_name()], coord, inst)
 
-                        self.sprite_dic[ca.get_name()].set_z(0)
-                        self.sprite_dic[ca.get_name()].set_position(ppos, inst)
-                        self.sprite_dic[ca.get_name()].scopri()
-                        self.sprite_dic[ca.get_name()].mostra()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -221,11 +221,7 @@ class SpriteManager(object):
 
             for key, spr in self.sprite_dic.items():
                 if spr.get_visible():
-                    if str(spr) != str(self._hovered_sprite):
-                        list.append(spr)
-                    else:
-                        spr.set_z(0)
-                        list.insert(0, spr)
+                    list.append(spr)
 
             for key, spr in self._extern_sprites.items():
                 if spr.get_visible():
@@ -240,88 +236,6 @@ class SpriteManager(object):
             self.all_sprites.add(list_sorted)
 
             self.update_areas()
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def show_carte_mano(self, coord, ccman, inst):
-        ic = 0
-        jc = 0
-
-        try:
-            if ccman != None:
-                z = 0
-                for ca in ccman:
-                    if ca is not None:
-                        spr = self.sprite_dic[ca.get_name()]
-                        pos = self.pos_man.get_pos_carta_mano(coord, z, len(ccman))
-                        if coord == POSTAZIONE_NORD:
-                            spr.set_grad(DEG_FLIP)
-                        elif coord == POSTAZIONE_EST:
-                            spr.set_grad(DEG_ANTC_RECT)
-                        elif coord == POSTAZIONE_OVEST:
-                            spr.set_grad(DEG_CLOC_RECT)
-                        elif coord == POSTAZIONE_SUD:
-                            spr.set_grad(DEG_NORMAL)
-                        else:
-                            pass
-                        '''                        
-                            ppos = self.pos_man.get_pos_carta_mano
-                                self.pos_man.get_area_mano(coord, ic, 0)
-                            ic = ic + 1
-                            ppos = self.pos_man.get_area_mano(coord, ic, 0)
-                            ic = ic + 1
-                            ppos = self.pos_man.get_area_mano(coord, jc, ic)
-                            (ic, jc) = self.update_show_index(ic, jc)
-                            ppos = self.pos_man.get_area_mano(coord, jc, ic)
-                            (ic, jc) = self.update_show_index(ic, jc)
-
-                        # To sort the list in place...
-                        # ut.sort(key=lambda x: x.count, reverse=True)
-'''
-                        spr.set_visible(True)
-                        spr.set_position(pos, inst)
-                        spr.set_z(len(ccman) - z)
-                        z = z + 1
-
-                    # Sort by z-index (overlapped correctly)
-                    #list = sorted(list, key=lambda x: x.get_z(), reverse=False)
-                    #self.all_sprites.add(list)
-
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def hide_carte_mano(self, ccman):
-        try:
-            if ccman != None:
-                for c in ccman:
-                    if c is not None:
-                        spr = self.sprite_dic[c.get_name()]
-                        spr.set_visible(False)
-                        spr.nascondi()
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def show_pozzo(self, ca):
-        try:
-            echo_message("Pozzo visibile")
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def hide_pozzo(self, ca):
-        try:
-            echo_message("Pozzo nascosto")
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def show_fola(self, ca):
-        try:
-            echo_message("Fola visibile")
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def hide_fola(self, ca):
-        try:
-            echo_message("Fola nascosta")
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -364,26 +278,60 @@ class SpriteManager(object):
 
     def update_areas(self):
         try:
+            collision = False
             mouse = pygame.mouse.get_pos()
             z = 100
+            newhover = None
 
-            for spr in self.all_sprites.sprites():
-                if spr.get_visible() and spr.get_z() < z:
+            if self._hovered_sprite is None:
+                for spr in self.all_sprites.sprites():
                     if spr.get_collide(mouse):
-                        self._colliding_sprite = spr
-                        if spr.get_hoverable():
+                        collision = True
+                        if spr.get_z() < z:
+                            self._colliding_sprite = spr
                             z = spr.get_z()
-                            self._hovered_sprite = spr
+                            if spr.get_hoverable():
+                                newhover = spr
+
+            elif self._hovered_sprite.get_collide(mouse):
+                # Still
+                newhover = self._hovered_sprite
+                collision = True
+            else:
+                for spr in self.all_sprites.sprites():
+                    if spr.get_collide(mouse):
+                        collision = True
+                        if spr.get_z() < z:
+                            self._colliding_sprite = spr
+                            z = spr.get_z()
+                            if spr.get_hoverable():
+                                newhover = spr
+
+            if newhover is not None:
+                if newhover != self._hovered_sprite:
+                    if self._hovered_sprite is not None:
+                        self._hovered_sprite.set_hover(False)
+                    self._hovered_sprite = newhover
+                    self._hovered_sprite.set_hover(True)
+                    #z = newhover.get_z()
+                    #print("Hovered " + str(newhover) + " z=" + str(z))
+            elif self._hovered_sprite is not None:
+                self._hovered_sprite.set_hover(False)
+                #print("Unhovered " + str(self._hovered_sprite) + " z=" + str(z))
+                self._hovered_sprite = None
+            if not collision:
+                self._colliding_sprite = None
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def on_event(self, e):
         try:
-            if e.type == pygame.MOUSEBUTTONUP and e.button == LEFT_CLICK:
-                if isinstance(self._colliding_sprite, SpriteCarta):
-                    self._delegate_carta_click(self._colliding_sprite.get_cid())
-                self._delegate_click()
-            elif e.type == pygame.MOUSEMOTION:
-                self.update_areas()
+            if self._stable_draw:
+                if e.type == pygame.MOUSEBUTTONUP and e.button == LEFT_CLICK:
+                    if isinstance(self._colliding_sprite, SpriteCarta):
+                        self._delegate_carta_click(self._colliding_sprite.get_cid())
+                    self._delegate_click()
+                elif e.type == pygame.MOUSEMOTION:
+                    self.update_areas()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)

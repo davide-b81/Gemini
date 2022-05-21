@@ -16,7 +16,7 @@ class MySprite(pygame.sprite.Sprite):
     classdocs
     '''
     ROTATE_STEP = 10
-    MOVE_STEP = 18
+    MOVE_STEP = 150
 
     REFRESH_PERIOD = 0.02
 
@@ -24,6 +24,7 @@ class MySprite(pygame.sprite.Sprite):
 
     _z_index = None
     _hoverable = None
+    _hover = None
     _img_dorso = None
     _img_fronte = None
 
@@ -56,6 +57,7 @@ class MySprite(pygame.sprite.Sprite):
 
             self._z_index = 0
             self._hoverable = False
+            self._hover = False
             self._name = name
             self._stable_draw = False
             self.reset()
@@ -67,7 +69,6 @@ class MySprite(pygame.sprite.Sprite):
             self._blink = False
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
-
 
     def __str__(self):
         try:
@@ -99,7 +100,7 @@ class MySprite(pygame.sprite.Sprite):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_lato(self, coperta, inst):
+    def set_lato(self, coperta, inst=True):
         try:
             if coperta:
                 self._asse_dest = DEG_SIDE_BACK
@@ -135,24 +136,22 @@ class MySprite(pygame.sprite.Sprite):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def move_to(self, x, y):
+    def move_to(self, pos):
         try:
-            self._pos = (round(x), round(y))
-            self._pos_dest = (round(x), round(y))
             self.rect = self.image.get_rect()
-            self.rect.x = self._pos[0]
-            self.rect.y = self._pos[1]
+            self.rect.x = pos[0]
+            self.rect.y = pos[1]
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def set_position(self, pos, inst):
         try:
             pos = (round(pos[0]), round(pos[1]))
-            if inst and self._pos_dest != pos:
+            if pos[0] != self._pos_dest[0] or pos[1] != self._pos_dest[1]:
+                #print("Posiziona " + str(self) + " in " + str(pos))
                 self._pos_dest = pos
-                self._pos = pos
-            elif self._pos_dest != pos:
-                self._pos_dest = pos
+                if inst:
+                    self._pos = pos
             assert self._pos_dest is not None
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -186,23 +185,37 @@ class MySprite(pygame.sprite.Sprite):
                 self._asse_dest = deg
             if inst:
                 self._asse = deg
-                self._stable_draw = False
+            self._stable_draw = False
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def get_z(self):
-        try:
-            return self._z_index
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
 
-    def get_hoverable(self, h=False):
+    def get_hoverable(self):
         return self._hoverable
 
     def enable_hoover(self, h=False):
         self._hoverable = h
 
+    def get_hover(self):
+        return self._hover
+
+    def set_hover(self, enable):
+        try:
+            self._hover = enable
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_z(self):
+        try:
+            if self._hover:
+                return 0
+            else:
+                return self._z_index
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def set_z(self, z=0):
+        #print(str(self) + " set sprite hoverable z = " + str(self._z_index))
         self._z_index = z
 
     def get_rect(self):
@@ -211,10 +224,12 @@ class MySprite(pygame.sprite.Sprite):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-
     def get_collide(self, mouse):
         try:
-            return self.rect.collidepoint(mouse)
+            if self._visible:
+                return self.rect.collidepoint(mouse)
+            else:
+                return False
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -249,7 +264,9 @@ class MySprite(pygame.sprite.Sprite):
 
     def translate(self):
         try:
-            self._pos = (self.get_translated_coord(self._pos_dest[0], self._pos[0]), self.get_translated_coord(self._pos_dest[1], self._pos[1]))
+            if self._pos[0] != self._pos_dest[0] or self._pos[1] != self._pos_dest[1]:
+                self._pos = (self.get_translated_coord(self._pos_dest[0], self._pos[0]), self.get_translated_coord(self._pos_dest[1], self._pos[1]))
+                #print("Translate " + str(self) + " in " + str(self._pos) + " finale " + str(self._pos_dest))
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -265,17 +282,18 @@ class MySprite(pygame.sprite.Sprite):
     def flip(self):
         try:
             if self._asse_dest != self._asse:
-                print("Update asse " + str(self._asse_dest))
-                if self._asse_dest > self._asse:
-                    self._asse = min(self._asse_dest, self._asse + self.ROTATE_STEP)
+                if self._asse_dest == DEG_SIDE_FRONT:
+                    self._asse = min(self._asse_dest, max(DEG_SIDE_FRONT, self._asse - self.ROTATE_STEP))
                 else:
-                    self._asse = max(self._asse_dest, self._asse - self.ROTATE_STEP)
+                    self._asse = max(self._asse_dest, min(self._asse + self.ROTATE_STEP, DEG_SIDE_BACK))
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def update_stable(self):
         try:
-            if self._asse != self._asse_dest:
+            if not self._visible:
+                self._stable_draw = True
+            elif self._asse != self._asse_dest:
                 self._stable_draw = False
             elif self._angle != self._angle_dest:
                 self._stable_draw = False
@@ -302,6 +320,6 @@ class MySprite(pygame.sprite.Sprite):
                 self.image = pygame.transform.flip(self.image, True, False)
             elif self._angle == DEG_CLOC_RECT or self._angle == DEG_ANTC_RECT:
                 self.image = pygame.transform.rotate(self.image, -self._angle)
-            self.move_to(self._pos[0], self._pos[1])
+            self.move_to(self._pos)
         except Exception as e:
             ExceptionMan.manage_exception(self._name, e, True)

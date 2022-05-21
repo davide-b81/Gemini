@@ -3,27 +3,21 @@ Created on 31 dic 2021
 
 @author: david
 '''
-import numpy
-from main.globals import *
-from decks.carta_id import *
-from game.germini.punteggi import carte_conto
-from main.exception_man import ExceptionMan
+import json
+from json import JSONDecoder
+
+from c14n.Canonicalize import JSONEncoder
+
+from main.globals import ComplexEncoder
+from oggetti.posizioni import *
 
 class Player(object):
     # Cards enum id
-    _cards = None
-    _cards_mangiate = None
-    _n_da_scartare = None
     _position = None
     _name = None
     _punti_mano = None
     _punti_partite = None
     _caduto = None
-    _delegate_sort = None
-    _delegate_dichiara = None
-    _delegate_scopri = None
-    _delegate_on_punti = None
-    _delegate_append_html_text = None
     _simulated = None
 
     '''
@@ -37,30 +31,10 @@ class Player(object):
             '''
             self._name = name
             self._position = pos
-            self._cards_mangiate = []
-            self._punti_mano = 0
-            self._punti_partite = 0
-            self._resti = 0
-            self._n_da_scartare = 0
-            self._caduto = False
+            self.reset()
             self._simulated = True
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
-
-    def set_delegate_scopri(self, f):
-        self._delegate_scopri = f
-
-    def set_delegate_dichiara(self, foo):
-        self._delegate_dichiara = foo
-
-    def set_delegate_sort(self, foo):
-        self._delegate_sort = foo
-
-    def set_delegate_append_html_text(self, foo):
-        self._delegate_append_html_text = foo
-
-    def set_delegate_on_punti(self, f):
-        self._delegate_on_punti = f
 
     def set_position(self, ppos):
         try:
@@ -69,6 +43,10 @@ class Player(object):
                 print(str(self) + " => " + ppos)
             else:
                 print(str(self) + " reset posizione")
+            if ppos == POSTAZIONE_SUD:
+                self._simulated = False
+            else:
+                self._simulated = True
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -79,16 +57,10 @@ class Player(object):
             ExceptionMan.manage_exception("", e, True)
 
     def get_simulated(self):
-        try:
-            return self._simulated
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
+        return self._simulated
 
-    def set_real(self, real=True):
-        try:
-            self._simulated = not real
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
+    def set_simulated(self, act=True):
+        self._simulated = act
 
     def get_label(self):
         try:
@@ -99,30 +71,16 @@ class Player(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def on_versicola(self, txt):
-        try:
-            self._delegate_dichiara(txt)
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
     def get_caduto(self):
-        try:
-            return self._caduto
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
+        return self._caduto
+
+    def set_caduto(self, act):
+        self._caduto = act
 
     def giocatore_cade(self):
         try:
             if self._caduto == False:
                 self._caduto = True
-            return self._caduto
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def restore_giocatore(self):
-        try:
-            self._punti_mano = 0
-            self._caduto = False
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -133,61 +91,100 @@ class Player(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def mangia_carta(self, c, pts):
-        try:
-            if c is not None:
-                self._cards_mangiate.append(c)
-                self._punti_mano = self._punti_mano + pts
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def get_punti_mano(self):
-        return self._punti_mano
+    def set_punti_partite(self, pts):
+        self._punti_partite = pts
 
     def get_punti_partite(self):
         return self._punti_partite
 
+    def set_punti_mano(self, pts):
+        self._punti_mano = pts
+
+    def get_punti_mano(self):
+        return self._punti_mano
+
     def get_resti(self):
         return self._resti
 
-    def on_fine_mano(self):
-        self._punti_partite = self._punti_partite + self._punti_mano
-        self._punti_mano = 0
-        return self._punti_partite
-
-    def on_fine_giro(self):
-        self._punti_partite = 0
-
-    def on_cade(self):
-            pass
-
-    def get_carte_mangiate(self):
+    def add_resti(self, n):
         try:
-            return self._cards_mangiate
+            self._resti = self._resti + n
+            return self._resti
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def reset_all(self):
+    def on_fine_mano(self):
         try:
-            self.reset()
-            self._punti_partite = 0
+            self._punti_partite = self._punti_partite + self._punti_mano
+            self._caduto = False
+            self._punti_mano = 0
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def on_fine_giro(self):
+        try:
+            self.reset_all()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def reset(self):
         try:
-            self._cards_mangiate.clear()
             self._caduto = False
             self._punti_mano = 0
-            self._n_da_scartare = 0
+            self._punti_partite = 0
+            self._resti = 0
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def __str__(self):
-        return self._name
+        try:
+            return self._name
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
     def __eq__(self, other):
-        if (other):
-            return str(self) == str(other)
-        return False
+        try:
+            if (other):
+                return str(self) == str(other)
+            return False
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
+    def __dict__(self):
+        return dict(_id_player=str(self._name),
+                    _position=str(self._position),
+                    _punti_mano=str(self._punti_mano),
+                    _punti_partite=str(self._punti_partite),
+                    _caduto=str(self._caduto),
+                    _simulated=str(self._simulated))
+
+    def reprJSON(self):
+        return self.__dict__()
+
+    @staticmethod
+    def fromJSON(json_object):
+        try:
+            _id_player = json_object['_id_player']
+            _position = json_object['_position']
+            _punti_mano = json_object['_punti_mano']
+            _punti_partite = json_object['_punti_partite']
+            _caduto = json_object['_caduto']
+            _simulated = json_object['_simulated']
+            p = Player(_id_player)
+            p.set_position(_position)
+            p.set_punti_mano(_punti_mano)
+            p.set_punti_partite(_punti_partite)
+            p.set_caduto(_caduto)
+            p.set_simulated(_simulated)
+            return p
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+
+if __name__ == '__main__':
+    c = Player("XXXX")
+    c.set_punti_partite(18)
+    c.set_position(POSTAZIONE_EST)
+    cc = json.dumps(c.reprJSON(), cls=ComplexEncoder)
+    print(cc)
+    f = JSONDecoder(object_hook=Player.fromJSON).decode(cc)

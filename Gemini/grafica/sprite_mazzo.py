@@ -72,24 +72,29 @@ class SpriteMazzo(MySprite):
 
     def set_position(self, pos, instant):
         try:
-            self._pos = pos
-            self.rect = self.image.get_rect()
-            self.rect.center = pos
+            if pos[0] != self._pos[0] or pos[1] != self._pos[1]:
+                self._pos = pos
+                self.rect = self.image.get_rect()
+                self.rect.center = pos
+                self.update_sprite_list()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def set_visible(self, visible, scoperta=False, z=None):
         try:
-            self.visible = visible
-            self.set_lato(scoperta)
-            if self.visible:
-                if z is not None:
-                    self.z_index = z
-            else:
-                self.z_index = 0
-                #self.rect = self.image.get_rect()
-                #self.rect.center = (0, 0)
-            self.update()
+            if self.visible != visible:
+                self.visible = visible
+                self.set_lato(scoperta)
+                if self.visible:
+                    print(str(self) + " visibile")
+                    if z is not None:
+                        self.z_index = z
+                else:
+                    print(str(self) + " invisibile")
+                    self.z_index = 0
+                    #self.rect = self.image.get_rect()
+                    #self.rect.center = (0, 0)
+                #self.update()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 

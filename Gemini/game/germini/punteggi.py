@@ -1,8 +1,5 @@
 from enum import Enum
-
 from decks.carta import CartaId
-from main.globals import *
-from main.exception_man import ExceptionMan
 
 class Tokens(Enum):
     TOKEN_UNO = 1
@@ -65,6 +62,13 @@ carte_sopraventi = {
 def is_conto(c):
     global carte_conto
     return c.get_id in carte_conto
+
+def get_punti_carta(c):
+    global carte_conto
+    if c.get_id in carte_conto:
+        return carte_conto[c.get_id]
+    else:
+        return 0
 
 punti_vers = {
     CartaId.MATTO_0: 5,

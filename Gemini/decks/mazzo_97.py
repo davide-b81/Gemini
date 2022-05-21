@@ -3,13 +3,13 @@ Created on 4 gen 2022
 
 @author: david
 '''
-from decks.mazzo import Mazzo
+from decks.deck import Deck
 from decks.carta import Carta, CartaId
 
 NUMERO_C = 97
 
 
-class Mazzo97(Mazzo):
+class Deck97(Deck):
     '''
     classdocs
     '''

@@ -21,7 +21,7 @@ from main.exception_man import ExceptionMan
 
 # Colors (R, G, B)
 from main.globals import Globals
-from oggetti.posizioni import PosizioniId, Posizioni
+from oggetti.posizioni import *
 from oggetti.text_box import UITextBox
 
 BLACK = (0, 0, 0)

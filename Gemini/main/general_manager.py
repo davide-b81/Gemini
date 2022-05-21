@@ -3,12 +3,16 @@ Created on 4 gen 2022
 
 @author: david
 '''
-import random
+import json
+from json import JSONDecoder, JSONEncoder
 
 from decks import mazzo_97
-from decks.carta_id import get_seme, CartaId
+from decks.carta import Carta
+from decks.carta_id import get_seme
+from decks.mazzo import Mazzo
 from game.germini.punteggi import carte_conto
-from oggetti.posizioni import DeckId
+from game.germini.strategia import posizioni
+from game.player import Player
 from oggetti.stringhe import _
 from main.globals import *
 from main.exception_man import ExceptionMan
@@ -17,33 +21,25 @@ class GeneralManager(object):
     '''
     classdocs
     '''
-    _globals = None
     _giocatori = None
 
-    _mazzo = None
-    _carte_mazzo = []
-    _carte_tutte = []
-    _carte_pozzo = []
-    _col_carte_tavola = {}
-    _col_carte_scarti = {}
-    _col_carte_mano = {}
-    _col_carte_prese = {}
-    _col_carte_rubate = {}
-    _col_carte_taglio = []
-    _col_carte_fola = []
+    _mazzo_ini = None
 
-    _delegate_restore_mazzo = None
-    _delegate_update_z = None
-    _delegate_hovrable = None
-    _delegate_set_fronte = None
-    _delegate_is_coperta = None
-    _delegate_show_carta = None
-    _delegate_hide_carta = None
-    _delegate_rotate_pos_carta = None
-    _mazzo_scoperto = None
+    _mazzo = None
+    _pozzo = None
+    _fola = None
+    _taglio = None
+    _set_ca_tavola = {}
+    _set_ca_scarti = {}
+    _set_ca_mano = {}
+    _set_ca_prese = {}
+    _set_ca_rubate = {}
+
     _mazziere = None
     _player = None
 
+    _delegate_restore_mazzo = None
+    _delegate_get_sprite = None
     '''
     CONSTRUCTOR
     '''
@@ -53,16 +49,21 @@ class GeneralManager(object):
             '''
             Constructor
             '''
-            self._globals = Globals()
-            self._mazzo = mazzo_97.Mazzo97()
-            self._col_carte_taglio = []
-            self._col_carte_fola = []
-            self._mazzo_scoperto = False
+            self._mazzo_ini = mazzo_97.Deck97()
             self._mazziere = None
             self._giocatori = []
             self._player = None
-            self._carte_tutte = self._mazzo.get_carte()
-            self.restore_mazzo()
+            self._carte_tutte = self._mazzo_ini.get_carte()
+            self._mazzo = Mazzo("Mazzo")
+            self._taglio = Mazzo("Taglio")
+            self._fola = Mazzo("Fola")
+            self._pozzo = Mazzo("Pozzo")
+            self._set_ca_tavola = {}
+            self._set_ca_scarti = {}
+            self._set_ca_mano = {}
+            self._set_ca_prese = {}
+            self._set_ca_rubate = {}
+            self.restore_decks()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -89,9 +90,17 @@ class GeneralManager(object):
     def get_mazziere(self):
         try:
             if self._mazziere is None:
-                if self._globals.get_debug():
-                    self._mazziere = self.get_player_at_pos("Sud")
+                if Globals().get_force_mazziere():
+                    self._mazziere = self.get_player_at_pos(POSTAZIONE_SUD)
+                else:
+                    raise Exception("Nessun mazziere definito")
             return self._mazziere
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def set_sprite(self, c):
+        try:
+            self._delegate_get_sprite()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -99,12 +108,28 @@ class GeneralManager(object):
         try:
             print("Mazziere " + str(player))
             self._mazziere = player
+            self._player = player
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def set_player(self, player):
         try:
             self._player = player
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def set_cards_sprites(self):
+        try:
+            if self._delegate_get_sprite is not None:
+                for c in self._carte_tutte:
+                    c.set_sprite(self._delegate_get_sprite(c.get_id()))
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def set_delegate_get_sprite(self, f):
+        try:
+            self._delegate_get_sprite = f
+            self.set_cards_sprites()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -140,26 +165,20 @@ class GeneralManager(object):
 
     def set_postazioni(self, post):
         try:
-            self._col_carte_tavola.clear()
-            self._col_carte_scarti.clear()
-            self._col_carte_mano.clear()
-            self._col_carte_prese.clear()
-            self._col_carte_rubate.clear()
+
             for ppos in post:
-                self._col_carte_tavola[ppos] = []
-                self._col_carte_scarti[ppos] = []
-                self._col_carte_mano[ppos] = []
-                self._col_carte_prese[ppos] = []
-                self._col_carte_rubate[ppos] = []
+                self._set_ca_tavola[ppos] = Mazzo("Tavola-" + str(ppos))
+                self._set_ca_scarti[ppos] = Mazzo("Scarti-" + str(ppos))
+                self._set_ca_mano[ppos] = Mazzo("Mano-" + str(ppos))
+                self._set_ca_prese[ppos] = Mazzo("Prese-" + str(ppos))
+                self._set_ca_rubate[ppos] = Mazzo("Rubate-" + str(ppos))
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def set_giocatori(self, giocatori):
         try:
-            assert self._col_carte_tavola is not None
             assert giocatori is not None
             self._giocatori.clear()
-
             for g in giocatori:
                 self.add_giocatore(g)
         except Exception as e:
@@ -169,111 +188,160 @@ class GeneralManager(object):
         try:
             if player is None:
                 player = self._player
-            if player.get_position() not in self._col_carte_mano:
+            if player.get_position() not in self._set_ca_mano:
                 return None
-            return self._col_carte_mano[player.get_position()]
+            return self._set_ca_mano[player.get_position()].get_carte()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def get_carte_rubate(self, player):
         try:
-            return self._col_carte_rubate[player.get_position()]
+            return self._set_ca_rubate[player.get_position()].get_carte()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def get_carte_fola(self):
         try:
-            return self._col_carte_fola
+            return self._fola.get_carte()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def get_carte_prese(self, player):
         try:
-            return self._col_carte_prese[player.get_position()]
+            return self._set_ca_prese[player.get_position()].get_carte()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def get_num_carte_fola(self):
+    def get_deck_merged(self, deck=DeckId.DECK_MAZZO):
         try:
-            return len(self._col_carte_fola)
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def set_gioco(self, g):
-        try:
-            assert g is not None
-            self.gioco = g
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def get_player_deck(self, ppos, deck=DeckId.DECK_MAZZO):
-        try:
-            if deck == DeckId.DECK_TAGLIO:
-                return self._col_carte_taglio[ppos]
+            if deck == DeckId.DECK_MAZZO:
+                return self._mazzo.get_carte()
+            elif deck == DeckId.DECK_TAGLIO:
+                return self._taglio.get_carte()
             elif deck == DeckId.DECK_FOLA:
-                return self._col_carte_fola[ppos]
+                return self._fola.get_carte()
+            elif deck == DeckId.DECK_POZZO:
+                return self._pozzo.get_carte()
             elif deck == DeckId.DECK_MANO:
-                return self._col_carte_mano[ppos]
+                return self.get_merged_list_ca(self._set_ca_mano)
+            elif deck == DeckId.DECK_TAVOLA:
+                return self.get_merged_list_ca(self._set_ca_tavola)
+            elif deck == DeckId.DECK_RUBATE:
+                return self.get_merged_list_ca(self._set_ca_rubate)
+            elif DeckId.DECK_SCARTO:
+                return self.get_merged_list_ca(self._set_ca_scarti)
+            elif DeckId.DECK_PRESE:
+                return self.get_merged_list_ca(self._set_ca_prese)
             else:
-                raise Exception("Wrong player deck")
+                raise Exception("Unknown deck " + str(deck))
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_merged_list_ca(self, deck_list):
+        try:
+            list = []
+            for key, vect in deck_list.items():
+                if len(vect) > 0:
+                    for c in vect:
+                        list.append(c)
+            return list
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_deck_vect(self, deck=DeckId.DECK_MANO):
+        try:
+            if deck == DeckId.DECK_TAVOLA:
+                return self._set_ca_tavola
+            if deck == DeckId.DECK_RUBATE:
+                return self._set_ca_rubate
+            elif deck == DeckId.DECK_SCARTO:
+                return self._set_ca_scarti
+            elif deck == DeckId.DECK_PRESE:
+                return self._set_ca_prese
+            else:
+                return None
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def get_deck(self, deck=DeckId.DECK_MAZZO, ppos=None):
         try:
             if deck == DeckId.DECK_MAZZO:
-                return self._carte_mazzo
+                return self._mazzo
             elif deck == DeckId.DECK_TAGLIO:
-                return self._col_carte_taglio
+                return self._taglio
             elif deck == DeckId.DECK_FOLA:
-                return self._col_carte_fola
+                return self._fola
             elif deck == DeckId.DECK_POZZO:
-                return self._carte_pozzo
+                return self._pozzo
             elif deck == DeckId.DECK_MANO:
                 if ppos is not None:
-                    if ppos in self._col_carte_mano:
-                        return self._col_carte_mano[ppos]
+                    if ppos in self._set_ca_mano:
+                        return self._set_ca_mano[ppos]
             elif deck == DeckId.DECK_TAVOLA:
                 if ppos is not None:
-                    if ppos in self._col_carte_tavola:
-                        return self._col_carte_tavola[ppos]
+                    if ppos in self._set_ca_tavola:
+                        return self._set_ca_tavola[ppos]
             if deck == DeckId.DECK_RUBATE:
                 if ppos is not None:
-                    if ppos in self._col_carte_rubate:
-                        return self._col_carte_rubate[ppos]
+                    if ppos in self._set_ca_rubate:
+                        return self._set_ca_rubate[ppos]
             elif deck == DeckId.DECK_SCARTO:
                 if ppos is not None:
-                    if ppos in self._col_carte_scarti:
-                        return self._col_carte_scarti[ppos]
+                    if ppos in self._set_ca_scarti:
+                        return self._set_ca_scarti[ppos]
+            elif deck == DeckId.DECK_PRESE:
+                if ppos is not None:
+                    if ppos in self._set_ca_prese:
+                        return self._set_ca_prese[ppos]
+            raise Exception("Unknown deck " + str(deck))
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_list_ca(self, deck=DeckId.DECK_MAZZO, ppos=None):
+        try:
+            if deck == DeckId.DECK_MAZZO or deck == DeckId.DECK_TAGLIO\
+                    or deck == DeckId.DECK_FOLA or deck == DeckId.DECK_POZZO:
+                return self.get_deck(deck).get_carte()
+            elif deck == DeckId.DECK_MANO:
+                if ppos is not None:
+                    if ppos in self._set_ca_mano:
+                        return self._set_ca_mano[ppos].get_carte()
+            elif deck == DeckId.DECK_TAVOLA:
+                if ppos is not None:
+                    if ppos in self._set_ca_tavola:
+                        return self._set_ca_tavola[ppos].get_carte()
+            if deck == DeckId.DECK_RUBATE:
+                if ppos is not None:
+                    if ppos in self._set_ca_rubate:
+                        return self._set_ca_rubate[ppos].get_carte()
+            elif deck == DeckId.DECK_SCARTO:
+                if ppos is not None:
+                    if ppos in self._set_ca_scarti:
+                        return self._set_ca_scarti[ppos].get_carte()
+            elif deck == DeckId.DECK_PRESE:
+                if ppos is not None:
+                    if ppos in self._set_ca_prese:
+                        return self._set_ca_prese[ppos].get_carte()
             return None
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def get_fola(self):
         try:
-            return self._col_carte_fola
+            return self._fola.get_carte()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def fai_la_fola(self):
         try:
-            self._col_carte_fola.clear()
-            self._col_carte_fola = self._carte_mazzo.copy()
-            self._carte_mazzo.clear()
+            self._fola.flush_carte()
+            self._fola <<= self._mazzo
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def get_taglio(self):
         try:
-            return self._col_carte_taglio
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def cat_mazzo(self, cid):
-        try:
-            for c in self._col_carte_taglio:
-                self._carte_mazzo.append(c)
-            self._col_carte_taglio.clear()
+            return self._taglio
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -281,41 +349,36 @@ class GeneralManager(object):
         try:
             i = 0
             c = None
-            while i < len(self._carte_mazzo) and i < n:
-                c = self._carte_mazzo.pop(0)
-                self._col_carte_taglio.append(c)
-                self._delegate_set_fronte(c, FRONTE_SCOPERTA, self._globals.get_instant())
-                self._delegate_update_z(c, i)
+            while i < len(self._mazzo) and i < n:
+                c = self._mazzo.pop(0)
+                self._taglio.append(c)
+
+                c.set_coperta(FRONTE_SCOPERTA)
+                c.set_z(i)
                 i = i + 1
-            if c is not None:
-                print("Taglio " + str(c))
+            #if c is not None:
+            #    print("Taglio " + str(c))
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def split_mazzo_cid(self, cid):
         try:
-            found = False
-            while len(self._carte_mazzo) != 0:
-                if str(self._carte_mazzo[0].get_id()) == str(cid):
+            while len(self._mazzo) != 0:
+                if str(self._mazzo[0].get_id()) == str(cid):
                     print("Break taglio " + str(cid))
                     break
-                c = self._carte_mazzo.pop(0)
-                self._col_carte_taglio.append(c)
-                print("Pop " + str(c))
+                c = self._mazzo.pop(0)
+                self._taglio.insert(c)
+                #print("Sposta in taglio " + str(c))
+            self._mazzo.print_carte()
+            self._taglio.print_carte()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def sort_mazzo(self, player):
+    def sort_mazzo_z(self, deck, ppos=None):
         try:
-            if len(self._col_carte_mano[player.get_position()]) > 1:
-                self._col_carte_mano[player.get_position()].sort(reverse=True)
-                self.update_z(self._col_carte_mano[player.get_position()])
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def mazzo_is_coperto(self):
-        try:
-            return self._mazzo_scoperto is False
+            ca = self.get_list_ca(deck, ppos)
+            ca.sort(key=lambda x: x.get_id().value)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -323,21 +386,21 @@ class GeneralManager(object):
         try:
             i = 0
             for c in ca:
-                if not self._delegate_is_coperta(c):
-                    self._delegate_update_z(c, i)
+                if not c.get_coperta():
+                    c.set_z(i)
                 i = i + 1
 
             for c in ca:
-                if self._delegate_is_coperta(c):
-                    self._delegate_update_z(c, i)
+                if c.get_coperta():
+                    c.set_z(i)
                 i = i + 1
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def merge_deck(self, deck_src, ppos_src, deck_dst, ppos_dst):
         try:
-            src = self.get_deck(deck_src, ppos_src)
-            dst = self.get_deck(deck_dst, ppos_dst)
+            src = self.get_list_ca(deck_src, ppos_src)
+            dst = self.get_list_ca(deck_dst, ppos_dst)
             while len(src) > 0:
                 c = self.pop_carta(-1, deck_src)
                 dst.append(c)
@@ -347,34 +410,31 @@ class GeneralManager(object):
     def raddrizza_mazzo(self):
         try:
             i = 0
-            if self._mazzo_scoperto is True:
-                self._mazzo_scoperto = False
-                self._carte_mazzo.reverse()
-                for c in self._carte_mazzo:
-                    self._delegate_set_fronte(c, FRONTE_COPERTA, self._globals.get_instant())
-                    self._delegate_update_z(c, i)
+            if self._mazzo.is_scoperto():
+                self._mazzo.set_dorso()
+                for c in self._mazzo:
+                    c.set_coperta(FRONTE_SCOPERTA)
+                    c.set_z(i)
                     if i == 0:
-                        self._delegate_hovrable(c, True)
+                        c.set_hoverable(True)
                     else:
-                        self._delegate_hovrable(c, False)
+                        c.set_hoverable(False)
                     i = i + 1
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def capovolgi_mazzo(self, deck=DeckId.DECK_MAZZO, ppos=None, fronte=FRONTE_SCOPERTA):
         try:
-            mazzo = self.get_deck(deck, ppos)
+            mazzo = self.get_list_ca(deck, ppos)
             i = 0
-            if not self._mazzo_scoperto and fronte==FRONTE_SCOPERTA:
-                mazzo.reverse()
-                self._mazzo_scoperto = True
-            if self._mazzo_scoperto and fronte==FRONTE_COPERTA:
-                mazzo.reverse()
-                self._mazzo_scoperto = False
+            if self._mazzo.is_coperto() and fronte == FRONTE_SCOPERTA:
+                mazzo.set_fronte()
+            if self._mazzo.is_scoperto() and fronte == FRONTE_COPERTA:
+                mazzo.set_dorso()
 
             for c in mazzo:
-                self._delegate_set_fronte(c, fronte, self._globals.get_instant())
-                self._delegate_update_z(c, i)
+                c.set_coperta(fronte == FRONTE_COPERTA)
+                c.set_z(i)
                 i = i + 1
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -383,85 +443,66 @@ class GeneralManager(object):
         try:
             echo_message(_("Taglia il mazzo..."))
             self.split_mazzo_cid(cid)
-            i = 0
-            for c in self._col_carte_taglio:
-                self._delegate_set_fronte(c, FRONTE_SCOPERTA, self._globals.get_instant())
-                self._delegate_update_z(c, i)
-                i = i + 1
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def mescola_mazzo(self):
         try:
-            i = 0
-            assert self._carte_mazzo is not None
-            random.shuffle(self._carte_mazzo)
+            assert self._mazzo is not None
+            self._mazzo.mescola()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def cls_deck(self, d):
         try:
             for col in d:
-                d[col].clear()
+                d[col].flush_carte()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def restore_mazzo(self):
+    def restore_decks(self):
         try:
             assert self._carte_tutte is not None
             if self._delegate_restore_mazzo is not None:
                 self._delegate_restore_mazzo()
-
-            self._carte_mazzo.clear()
-            self._carte_pozzo.clear()
-            self._col_carte_taglio.clear()
-            self._col_carte_fola.clear()
-
-            self.cls_deck(self._col_carte_scarti)
-            self.cls_deck(self._col_carte_mano)
-            self.cls_deck(self._col_carte_prese)
-            self.cls_deck(self._col_carte_rubate)
-
-            self._carte_mazzo = self._carte_tutte.copy()
-
+            self._mazzo.flush_carte()
+            self._pozzo.flush_carte()
+            self._fola.flush_carte()
+            self._taglio.flush_carte()
+            self.cls_deck(self._set_ca_mano)
+            self.cls_deck(self._set_ca_scarti)
+            self.cls_deck(self._set_ca_prese)
+            self.cls_deck(self._set_ca_rubate)
+            #for p in posizioni:
+            #    self._set_ca_mano[p] = None
+            self._mazzo.append_carte(self._mazzo_ini.get_carte())
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def restore_manche(self):
         try:
-            assert self._carte_mazzo is not None
             echo_message(_("Raccoglie tutte le carte..."))
             self.restore_tavola()
-            self.restore_mazzo()
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def remove_matto(self, c):
-        try:
-            for key, posto in self._col_carte_tavola.items():
-                for car in posto:
-                    if car.get_cid() == CartaId.MATTO_0 and c.get_id() == CartaId.MATTO_0:
-                        self._col_carte_tavola[key].remove(c)
-                        self._col_carte_prese[posto].append(c)
+            self.restore_decks()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def remove_tavola(self, player, c):
         try:
-            for key, posto in self._col_carte_tavola.items():
-                for car in posto:
-                    if car == c:
-                        self._col_carte_tavola[key].remove(c)
-                        self._col_carte_prese[player.get_position()].append(c)
+            for key, elems in self._set_ca_tavola.items():
+                for cc in elems.get_carte():
+                    if cc == c:
+                        self._set_ca_tavola[key].remove(c)
+                        self._set_ca_prese[player.get_position()].append(c)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def restore_tavola(self):
         try:
-            assert self._col_carte_tavola is not None
+            assert self._set_ca_tavola is not None
             echo_message("Restore tavola")
-            for key, posto in self._col_carte_tavola.items():
-                posto.clear()
+            for key, posto in self._set_ca_tavola.items():
+                posto.flush_carte()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -475,27 +516,20 @@ class GeneralManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def restore_fola(self):
-        try:
-            if self._col_carte_fola is not None:
-                self._col_carte_fola.clear()
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
     def restore_all(self):
         try:
             self.restore_manche()
             self.restore_tavola()
             self.restore_giocatori()
-            self.restore_fola()
+            self._fola.flush_carte()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def carta_giocata(self, posizione):
         try:
             assert posizione is not None
-            assert self._col_carte_tavola is not None
-            cc = self._col_carte_tavola[posizione]
+            assert self._set_ca_tavola is not None
+            cc = self._set_ca_tavola[posizione].get_carte()
             if cc is not None:
                 if len(cc) > 0:
                     return cc[0]
@@ -505,46 +539,37 @@ class GeneralManager(object):
 
     def clear_carte_in_tavola(self, posizione):
         try:
-            self._col_carte_tavola[posizione].clear()
+            self._set_ca_tavola[posizione].flush_carte()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def get_carte_in_tavola_pos(self, posizione):
         try:
-            if posizione is not None and self._col_carte_tavola is not None:
-                if posizione in self._col_carte_tavola:
-                    return self._col_carte_tavola[posizione]
+            if posizione is not None and self._set_ca_tavola is not None:
+                if posizione in self._set_ca_tavola:
+                    return self._set_ca_tavola[posizione].get_carte()
             return None
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
         return None
 
-    def get_carte_tavola(self):
+    def get_all_tavola(self):
         try:
-            list = []
-            for key, vect in self._col_carte_tavola.items():
-                if len(vect) > 0:
-                    for c in vect:
-                        list.append(c)
-            return list
+            ll = []
+            for key, mm in self._set_ca_tavola.items():
+                for c in mm.get_carte():
+                    ll.append(c)
+            return ll
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def rimuove_carta_in_tavola(self, c):
         try:
-            for key, vect in self._col_carte_tavola.items():
-                if vect.count(c) > 0:
-                    vect.remove(c)
+            for key, mm in self._set_ca_tavola.items():
+                mm.remove(c)
             return None
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
-
-    def carte_mostrate(self, posizione):
-        try:
-            return self._col_carte_tavola[posizione].get_carte_mostrate()
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-        return None
 
     def termina_gioco(self):
         try:
@@ -560,7 +585,7 @@ class GeneralManager(object):
             else:
                 ppos = player.get_position()
 
-            mazzo = self.get_deck(deck, ppos)
+            mazzo = self.get_list_ca(deck, ppos)
             if mazzo is not None:
                 if len(mazzo) > i:
                     return mazzo[i]
@@ -570,39 +595,28 @@ class GeneralManager(object):
 
     def pop(self, i, mazzo):
         try:
-            assert mazzo is not None
-            assert len(mazzo) != 0
             return mazzo.pop(i)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def pop_carta(self, i, deck, ppos=None):
         try:
-            return self.pop(i, self.get_deck(deck, ppos))
+            return self.pop(i, self.get_list_ca(deck, ppos))
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def is_ultima_mano(self):
-        return len(self._col_carte_mano[self._player.get_position()]) == 1
+        return len(self._set_ca_mano[self._player.get_position()]) == 1
 
     def read_ultima_carta(self):
         try:
-            if len(self._carte_mazzo) != 0:
-                return self._carte_mazzo[-1]
-            return None
+            return self._mazzo.get_carta(-1)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def add_rubate_giocatore(self, player, c):
         try:
-            return self._col_carte_rubate[player.get_position()].append(c)
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def add_mano_giocatore(self, player, c):
-        try:
-            print(str(player) + " riceve " + str(c))
-            self._col_carte_mano[player.get_position()].append(c)
+            return self._set_ca_rubate[player.get_position()].append(c)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -612,7 +626,7 @@ class GeneralManager(object):
                 ppos = player.get_position()
             else:
                 ppos = None
-            d = self.get_deck(deck, ppos)
+            d = self.get_list_ca(deck, ppos)
             if d is not None:
                 for c in d:
                     if str(cid) == str(c.get_id()):
@@ -623,7 +637,7 @@ class GeneralManager(object):
 
     def has_carta(self, player, cid):
         try:
-            for c in self._col_carte_mano[player.get_position()]:
+            for c in self._set_ca_mano[player.get_position()].get_carte():
                 if str(cid) == str(c.get_id()):
                     return True
             return False
@@ -632,7 +646,7 @@ class GeneralManager(object):
 
     def has_seme(self, player, seed):
         try:
-            for c in self._col_carte_mano[player.get_position()]:
+            for c in self._set_ca_mano[player.get_position()].get_carte():
                 if get_seme(c.get_id()) == seed:
                     return True
             return False
@@ -644,7 +658,7 @@ class GeneralManager(object):
         ca = []
         try:
             for i in range(n):
-                c = self._carte_mazzo.pop()
+                c = self._mazzo.pop()
                 if c is None:
                     break
                 ca.append(c)
@@ -652,12 +666,12 @@ class GeneralManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-
     def pesca_dal_mazzo(self, deck=DeckId.DECK_MAZZO, ppos=None):
         try:
-            d = self.get_deck(deck, ppos)
+            d = self.get_list_ca(deck, ppos)
             if d is not None:
-                return d.pop()
+                if len(d) > 0:
+                    return d.pop()
             else:
                 raise Exception(_("No card in the deck"))
             return None
@@ -667,7 +681,7 @@ class GeneralManager(object):
     def inserisci_nel_mazzo(self, c, deck, ppos):
         try:
             assert ppos is not None
-            d = self.get_deck(deck, ppos)
+            d = self.get_list_ca(deck, ppos)
             if d is not None:
                 d.insert(0, c)
         except Exception as e:
@@ -675,9 +689,14 @@ class GeneralManager(object):
 
     def sposta_in_tavola(self, c, ppos):
         try:
-            if c in self._col_carte_mano[ppos]:
-                self._col_carte_mano[ppos].remove(c)
-                self._col_carte_tavola[ppos].insert(0, c)
+            if c in self._set_ca_mano[ppos]:
+                self._set_ca_mano[ppos].remove(c)
+                self._set_ca_tavola[ppos].insert(c)
+            elif c in self._set_ca_rubate[ppos]:
+                self._set_ca_rubate[ppos].remove(c)
+                self._set_ca_tavola[ppos].insert(c)
+            else:
+                raise Exception("Carta non trovata!")
             return c
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -685,18 +704,18 @@ class GeneralManager(object):
     def piglia_da_fola(self, player):
         ca = []
         try:
-            for c in self._col_carte_fola:
+            for c in self._fola:
                 if c.get_id() in carte_conto:
                     print(str(player) + " piglia " + str(c))
                     ca.append(c)
-                    self._col_carte_fola.remove(c)
+                    self._fola.remove(c)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
         return ca
 
     def append_fola(self, c):
         try:
-            self._col_carte_fola[self._mazziere()].append(c)
+            self._fola[self._mazziere()].append(c)
             return c
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -705,9 +724,9 @@ class GeneralManager(object):
         try:
             if player is None:
                 player = self._player
-            assert c in self._col_carte_mano[player.get_position()]
-            self._col_carte_mano[player.get_position()].remove(c)
-            self._col_carte_scarti[player.get_position()].append(c)
+            assert c in self._set_ca_mano[player.get_position()].get_carte()
+            self._set_ca_mano[player.get_position()].remove(c)
+            self._set_ca_scarti[player.get_position()].append(c)
         except Exception as e:
             print(str(c))
             ExceptionMan.manage_exception("", e, True)
@@ -721,20 +740,20 @@ class GeneralManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def set_deck_visible(self, deck, ppos, enable=True):
+        try:
+            deck_obj = self.get_deck(deck, ppos)
+            deck_obj.set_visible(enable)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def mostra_carta(self, player, c):
         try:
             echo_message(player._name + " (" + player.get_position() + ") mostra " + str(c))
-            self._col_carte_tavola[player.get_position()].insert(0, c)
+            self._set_ca_tavola[player.get_position()].insert(c)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
         return c
-
-    def pesca_dagli_scarti(self, player):
-        try:
-            if self._col_carte_scarti:
-                self._col_carte_scarti[player].pesca()
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
 
     def set_delegate_restore_mazzo(self, f):
         try:
@@ -742,38 +761,125 @@ class GeneralManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_delegate_hoverable(self, f):
-        self._delegate_hovrable = f
+    def is_coperta(self, c):
+        return c.get_coperta()
 
-    def set_delegate_update_z(self, f):
-        self._delegate_update_z = f
-
-    def set_delegate_show_carta(self, f):
+    def get_scoperte(self, deck, ppos):
         try:
-            self._delegate_show_carta = f
+            lissc = []
+            ca = self.get_list_ca(deck, ppos)
+            for c in ca:
+                if not c.get_coperta():
+                    lissc.append(c)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_delegate_hide_carta(self, f):
+    def count_seme_in_deck(self, palo, deck, ppos):
+        """ Utilità per strategia """
         try:
-            self._delegate_hide_carta = f
+            i = 0
+            ca = self.get_list_ca(deck, ppos)
+            for c in ca:
+                if c.get_seme() == palo:
+                    i = i + 1
+            return i
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_delegate_set_fronte(self, f):
+    def get_lista_seme(self, palo, deck, ppos):
         try:
-            self._delegate_set_fronte = f
+            i = 0
+            ca = self.get_list_ca(deck, ppos)
+            lista = []
+            for c in ca:
+                if c.get_seme() == palo:
+                    lista.append(c)
+            return Carta.sort(lista)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_delegate_is_coperta(self, f):
+    def reprJSON(self):
+        return dict(_mazziere=self._mazziere,
+                    _giocatori=self._giocatori,
+                    _player=self._player,
+                    _mazzo=self._mazzo,
+                    _taglio=self._taglio,
+                    _fola=self._fola,
+                    _pozzo=self._pozzo,
+                    _set_ca_tavola=self._set_ca_tavola,
+                    _set_ca_scarti=self._set_ca_scarti,
+                    _set_ca_mano=self._set_ca_mano,
+                    _set_ca_prese=self._set_ca_prese,
+                    _set_ca_rubate=self._set_ca_rubate
+               )
+
+    @staticmethod
+    def fromJSON(json_object):
         try:
-            self._delegate_is_coperta = f
+            if '_id_carta' in  json_object.keys():
+                return Carta.fromJSON(json_object)
+            elif '_id_deck' in json_object.keys():
+                return Mazzo.fromJSON(json_object)
+            elif '_mazziere' in  json_object.keys():
+                man = GeneralManager()
+                _giocatori = json_object['_giocatori']
+                man.set_giocatori(_players)
+                _obj = json_object['_mazzo']
+                man._mazzo = _obj
+                _obj = json_object['_taglio']
+                man._taglio = _obj
+                _fola = json_object['_fola']
+                man._fola = _obj
+                _obj = json_object['_pozzo']
+                man._pozzo = _obj
+
+                _player = json_object['_player']
+                _mazziere = json_object['_mazziere']
+                for p in _giocatori:
+                    if str(p) == str(_mazziere):
+                        man.set_mazziere(p)
+                    if str(p) == str(_player):
+                        man.set_player(p)
+                _set_ca_tavola = json_object['_set_ca_tavola']
+                man._set_ca_tavola = _set_ca_tavola
+                _set_ca_scarti = json_object['_set_ca_scarti']
+                man._set_ca_scarti = _set_ca_scarti
+                _set_ca_mano = json_object['_set_ca_mano']
+                man._set_ca_mano = _set_ca_mano
+                _set_ca_prese = json_object['_set_ca_prese']
+                man._set_ca_prese = _set_ca_prese
+                _set_ca_rubate = json_object['_set_ca_rubate']
+                man._set_ca_rubate = _set_ca_rubate
+                man.set_cards_sprites()
+                return man
+            else:
+                return json_object
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_delegate_rotate_pos_carta(self, f):
-        try:
-            self._delegate_rotate_pos_carta = f
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
+if __name__ == '__main__':
+    man = GeneralManager()
+    try:
+        _players = []
+        _players.append(Player("Davide", POSTAZIONE_SUD))
+        _players.append(Player("Tizio", POSTAZIONE_EST))
+        _players.append(Player("Caio", POSTAZIONE_NORD))
+        _players.append(Player("Sempronio", POSTAZIONE_OVEST))
+        man.set_giocatori(_players)
+        man.set_mazziere(man.get_player_at_pos(POSTAZIONE_SUD))
+        man.set_player(man.get_player_at_pos(POSTAZIONE_OVEST))
+        man.set_postazioni([POSTAZIONE_NORD, POSTAZIONE_EST, POSTAZIONE_SUD, POSTAZIONE_OVEST])
+
+        src = man.get_list_ca(DeckId.DECK_MAZZO)
+        c = src.pop()
+        dst = man.get_list_ca(DeckId.DECK_MANO, POSTAZIONE_OVEST)
+        if dst is not None:
+            dst.append(c)
+        cc = json.dumps(man.reprJSON(), cls=ComplexEncoder)
+        f = JSONDecoder(object_hook=GeneralManager.fromJSON).decode(cc)
+        d = f.get_deck(DeckId.DECK_MANO, POSTAZIONE_OVEST)
+        print(f.get_player_at_pos(POSTAZIONE_SUD))
+        print(f.get_mazziere())
+        print(str(d))
+    except Exception as e:
+        ExceptionMan.manage_exception("", e, True)

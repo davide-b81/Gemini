@@ -112,6 +112,15 @@ class GiocoFrame(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def reset_player_labels(self):
+        try:
+            self._nome_n_lab.set_text("")
+            self._nome_s_lab.set_text("")
+            self._nome_o_lab.set_text("")
+            self._nome_e_lab.set_text("")
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def set_player_labels(self, player):
         try:
             if player.get_position() == POSTAZIONE_NORD:
@@ -124,12 +133,6 @@ class GiocoFrame(object):
             if player.get_position() == POSTAZIONE_EST:
                 self._nome_e_lab.set_text(str(player))
                 self._nome_e_lab.set_text_rotation(-90, str(player))
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def imposta_giocatori(self, giocatori):
-        try:
-            self._game_man.set_giocatori(giocatori)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -182,7 +185,7 @@ class GiocoFrame(object):
     def on_update_punteggi(self):
         try:
             txt = self._game_man.get_text_punti_mano()
-            txt = txt + self._game_man.get_text_punti_totale()
+            txt = txt + self._game_man.get_text_resti()
             self.draw_box_punteggi(txt)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -208,7 +211,7 @@ class GiocoFrame(object):
 
     def on_show_carte_tavola(self, coord, ccman):
         try:
-            return self._sprite_man.show_carte_tavola(coord, ccman, self._globals.get_instant())
+            return self._sprite_man.show_carte_tavola(coord, ccman, self._globals.get_instant_pos())
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -226,6 +229,7 @@ class GiocoFrame(object):
 
     def on_restore(self):
         try:
+            self.reset_player_labels()
             self.draw_box_punteggi()
             self._sprite_man.reset()
             if self._popup_box is not None:
@@ -240,6 +244,13 @@ class GiocoFrame(object):
             self._game_man.inizia_gioco(players, game)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+
+    def dump_gioco(self, file):
+        try:
+            self._game_man.dump_gioco(file)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
 
     def on_move(self, c, pos, inst=False):
         try:
@@ -293,17 +304,13 @@ class GiocoFrame(object):
         try:
             if self._box_punti is not None:
                 self._box_punti.hide()
-                self.appended_text = ""
+                #self.appended_text = ""
+                self._sprite_man.show_token(TOKEN_MANO, None, False)
+                self._sprite_man.show_token(TOKEN_DEAL, None, False)
                 del self._box_punti
                 self._box_punti = None
             self.draw_box_punteggi("")
             self._game_man.termina_gioco()
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def on_mescola(self):
-        try:
-            pass
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -323,12 +330,6 @@ class GiocoFrame(object):
         try:
             # TODO: riordinare gli sprite
             pass#self._sprite_man.sort()
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def on_show_fola(self):
-        try:
-            self._sprite_man.show_fola()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -441,7 +442,6 @@ class GiocoFrame(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-
     def update_turno(self, ppos, visible=True):
         try:
             self._sprite_man.show_token(TOKEN_MANO, ppos, visible)
@@ -475,6 +475,7 @@ class GiocoFrame(object):
 
     def on_carta_click(self, cid):
         try:
+            print("Click su " + str(cid))
             self._game_man.on_carta_click(cid)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -484,5 +485,11 @@ class GiocoFrame(object):
             # Update player's position
             for p in self._game_man.get_giocatori():
                 print(str(p.get_position()) + ": " +str(p))
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_sprite(self, cid):
+        try:
+            return self._sprite_man.get_sprite_carta(cid)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)

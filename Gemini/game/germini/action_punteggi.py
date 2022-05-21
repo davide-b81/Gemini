@@ -10,7 +10,7 @@ from decks.carta_id import is_cartiglia
 from game.germini.action import Action
 from main.exception_man import ExceptionMan
 from main.globals import echo_message
-from oggetti.posizioni import DeckId
+from oggetti.posizioni import *
 
 '''
 (1). Il mazziere scozza le carte terminando solo dopo aver verificato che in fondo al mazzo vi sia una cartiglia.

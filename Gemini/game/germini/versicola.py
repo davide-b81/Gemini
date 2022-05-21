@@ -159,7 +159,7 @@ class Versicola(object):
             elif self._id == VERSICOLA_TREDICI_ID:
                 return _("Versicola del tredici")
             elif self._id == VERSICOLA_CARNE_ID:
-                return _("Versicola della Carne")
+                return _("Versicola Demonio, Mondo, Carne")
             elif self._id == VERSICOLA_REGOLARE_ID:
                 return _("Versicola regolare")
         except Exception as e:

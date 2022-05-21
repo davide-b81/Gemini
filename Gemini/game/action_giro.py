@@ -6,13 +6,12 @@ from copy import copy
 from importlib.resources import _
 from time import monotonic
 
-from decks.carta_id import is_cartiglia, get_greater, seme_name, get_seme, CartaId, is_tarocco
+from decks.carta_id import is_cartiglia, get_greatest_card, seme_name, get_seme, CartaId, is_tarocco
 from game.germini.action import Action
 from game.germini.punteggi import is_conto
 from main.exception_man import ExceptionMan
-from main.globals import echo_message, POSTAZIONE_SUD, POSTAZIONE_NORD, POSTAZIONE_EST, POSTAZIONE_OVEST, \
-    FRONTE_SCOPERTA
-from oggetti.posizioni import DeckId
+from oggetti.posizioni import *
+from main.globals import echo_message, FRONTE_SCOPERTA
 
 
 class ActionGiro(Action):
@@ -39,16 +38,16 @@ class ActionGiro(Action):
     def __init__(self, fsm):
         try:
             super().__init__(fsm)
-            self._t_action = monotonic()
-            self._newsts = self.ACTSTATUS_PESCA_1
+            self._sorteggio = []
             self._n = 0
             self._c = {}
             self._d = []
-            self._sorteggio = []
-            self._c["Nord"] = None
-            self._c["Ovest"] = None
-            self._c["Sud"] = None
-            self._c["Est"] = None
+            self._c[POSTAZIONE_NORD] = None
+            self._c[POSTAZIONE_OVEST] = None
+            self._c[POSTAZIONE_SUD] = None
+            self._c[POSTAZIONE_EST] = None
+            self._t_action = monotonic()
+            self._newsts = None
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -58,31 +57,40 @@ class ActionGiro(Action):
         """
         try:
             if self._status == self.ACTSTATUS_PESCA_1:
-                if self.giocatore_pesca(self._fsm.get_giocatori()[0], POSTAZIONE_NORD):
+                if self.giocatore_pesca(self._fsm.get_giocatori()[0], POSTAZIONE_SUD):
                     self._newsts = self.ACTSTATUS_PESCA_2
             elif self._status == self.ACTSTATUS_PESCA_2:
-                if self.giocatore_pesca(self._fsm.get_giocatori()[1], POSTAZIONE_OVEST):
+                if self.giocatore_pesca(self._fsm.get_giocatori()[1], POSTAZIONE_EST):
                     self._newsts = self.ACTSTATUS_PESCA_3
             elif self._status == self.ACTSTATUS_PESCA_3:
-                if self.giocatore_pesca(self._fsm.get_giocatori()[2], POSTAZIONE_SUD):
+                if self.giocatore_pesca(self._fsm.get_giocatori()[2], POSTAZIONE_NORD):
                     self._newsts = self.ACTSTATUS_PESCA_4
             elif self._status == self.ACTSTATUS_PESCA_4:
-                if self.giocatore_pesca(self._fsm.get_giocatori()[3], POSTAZIONE_EST):
+                if self.giocatore_pesca(self._fsm.get_giocatori()[3], POSTAZIONE_OVEST):
                     self._newsts = self.ACTSTATUS_NOTIFICA
             elif self._status == self.ACTSTATUS_NOTIFICA:
-                if self.ripesca():
-                    self.show_timed_popup("Ripesca")
+                if self._globals.get_force_mazziere():
+                    ppl = self._fsm.get_giocatori()
+                    self._sorteggio.append((POSTAZIONE_SUD, ppl[0]))
+                    self._sorteggio.append((POSTAZIONE_EST, ppl[1]))
+                    self._sorteggio.append((POSTAZIONE_NORD, ppl[2]))
+                    self._sorteggio.append((POSTAZIONE_OVEST, ppl[3]))
                 else:
-                    self.ordina()
+                    if self.ripesca():
+                        self.show_timed_popup("Ripesca")
+                    else:
+                        self.ordina()
+                if not self.ripesca():
                     txt = "<p>Classifica:</p>"
                     txt += "<p>1. " + str(self._sorteggio[0][1]) + " - " + str(self._sorteggio[0][0]) + "</p>"
                     txt += "<p>2. " + str(self._sorteggio[1][1]) + " - " + str(self._sorteggio[1][0]) + "</p>"
                     txt += "<p>3. " + str(self._sorteggio[2][1]) + " - " + str(self._sorteggio[2][0]) + "</p>"
                     txt += "<p>4. " + str(self._sorteggio[3][1]) + " - " + str(self._sorteggio[3][0]) + "</p>"
                     txt += "<br/><p>Partita 1/4</p>"
-                    self.show_timed_popup(txt, 0.01)
+                    self.show_timed_popup(txt)
                     self.set_coppie_1()
-                    self._newsts = self.ACTSTATUS_PARTITA_1
+                self._newsts = self.ACTSTATUS_PARTITA_1
+
             elif self._status == self.ACTSTATUS_PARTITA_1:
                 pass
             elif self._status == self.ACTSTATUS_PARTITA_2:
@@ -94,10 +102,12 @@ class ActionGiro(Action):
 
     def giocatore_pesca(self, player, ppos):
         try:
+            if ppos is None:
+                ppos = player.get_position()
             c = self._fsm.pesca_dal_mazzo(DeckId.DECK_MAZZO)
             self._c[ppos] = c
             self._d.append((c, player))
-            self._fsm.inserisci_nel_mazzo(c, DeckId.DECK_TAVOLA, ppos)
+            self._fsm.inserisci_nel_mazzo(c, DeckId.DECK_TAVOLA, FRONTE_SCOPERTA, ppos)
             if c.get_id() == CartaId.MATTO_0:
                 echo_message(str(player) + " ha pescato " + str(self._c[ppos]) + ". Pesca di nuovo.")
                 return False
@@ -160,6 +170,7 @@ class ActionGiro(Action):
             c2 = (self._sorteggio[2][1], self._sorteggio[3][1])
             mazziere = self._sorteggio[0][1]
             self._fsm.on_coppie(c1, c2, mazziere)
+            assert self._fsm.get_mazziere() is not None
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -214,8 +225,13 @@ class ActionGiro(Action):
         try:
             self._sorteggio.clear()
             self._d.clear()
-            self._status = self.ACTSTATUS_PESCA_1
-            self._newsts = self.ACTSTATUS_PESCA_1
+
+            if not self._globals.get_force_mazziere():
+                self._status = self.ACTSTATUS_PESCA_1
+                self._newsts = self.ACTSTATUS_PESCA_1
+            else:
+                self._status = self.ACTSTATUS_NOTIFICA
+                self._newsts = self.ACTSTATUS_NOTIFICA
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 

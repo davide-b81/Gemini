@@ -9,7 +9,7 @@ from decks.carta_id import is_cartiglia
 from game.germini.action import Action
 from main.exception_man import ExceptionMan
 from main.globals import echo_message, FRONTE_SCOPERTA
-from oggetti.posizioni import DeckId
+from oggetti.posizioni import *
 
 '''
 (3). Il mazziere distribuisce ora le carte nel seguente modo: prima dieci carte ciascuno partendo dal giocatore
@@ -55,28 +55,15 @@ class ActionDistribuzione(Action):
 
     def distribuzione_ultima(self):
         try:
-            c = self._fsm.pesca_dal_mazzo(DeckId.DECK_MAZZO)
-            self._fsm.marca_punti(c)
-
-            self._fsm.update_next_player()
-            c = self._fsm.pesca_dal_mazzo(DeckId.DECK_MAZZO)
-            self._fsm.marca_punti(c)
-
-            self._fsm.update_next_player()
-            c = self._fsm.pesca_dal_mazzo(DeckId.DECK_MAZZO)
-            self._fsm.marca_punti(c)
-
-            self._fsm.update_next_player()
-            c = self._fsm.pesca_dal_mazzo(DeckId.DECK_MAZZO)
-            self._fsm.marca_punti(c)
-
-            self._fsm.update_next_player()
-            for player in self._fsm.get_giocatori():
-
+            for i in range(0, len(self._fsm.get_giocatori())):
+                c = self._fsm.get_prima(DeckId.DECK_MAZZO)
                 if c is not None:
-                    self._fsm.consegna_carta(c, FRONTE_SCOPERTA, player)
+                    self._fsm.marca_punti(c)
+                    self._fsm.dai_al_giocatore(self._fsm.get_player(), 1, FRONTE_SCOPERTA)
+                    self._fsm.update_next_player()
                 else:
-                    raise NotImplemented("Condizione mazziere senza ultima carta")
+                    print("Il mazziere pescherà l'ultima carta in seguito")
+
                 self._newsts = self.ACTSTATUS_SHOWULTIMA
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)

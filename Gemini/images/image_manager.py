@@ -25,6 +25,7 @@ class ImageManager(object):
     img_tokenD = None
     img_tokenM = None
     image_name = {}
+    cards = "images.Meneghello"
     package = "images"
     retro_name = "retro.png"
     background_name = "sfondo.png"
@@ -138,12 +139,12 @@ class ImageManager(object):
             self.image_name[c.TROMBA_XL] = "MF_T40.png"
 
             for key in self.image_name:
-                path = resources.path(self.package, self.image_name[key])
+                path = resources.path(self.cards, self.image_name[key])
                 img = pygame.image.load(path)
                 self.imgs[key] = pygame.transform.scale(img, card_size)
                 assert self.imgs[key] is not None
 
-            path = resources.path(self.package, self.retro_name)
+            path = resources.path(self.cards, self.retro_name)
             img = pygame.image.load(path)
             self.img_retro = pygame.transform.scale(img, card_size)
             assert self.img_retro is not None

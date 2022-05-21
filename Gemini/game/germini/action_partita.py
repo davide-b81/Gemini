@@ -6,15 +6,12 @@ from copy import copy
 from importlib.resources import _
 from time import monotonic
 
-from decks.carta import Carta
-from decks.carta_id import is_cartiglia, get_greater, seme_name, get_seme, CartaId
 from game.germini.action import Action
 from game.germini.punteggi import is_conto
 from game.germini.strategia import Strategia
 from main.exception_man import ExceptionMan
-from main.globals import echo_message, POSTAZIONE_SUD, POSTAZIONE_NORD, POSTAZIONE_EST, POSTAZIONE_OVEST, \
-    FRONTE_SCOPERTA
-from oggetti.posizioni import DeckId
+from oggetti.posizioni import *
+from main.globals import echo_message, FRONTE_COPERTA
 
 
 class ActionPartita(Action):
@@ -26,6 +23,7 @@ class ActionPartita(Action):
     ACTSTATUS_SCARTA_CARTA_2 = "ACTSTATUS_SCARTA_CARTA_2"
     ACTSTATUS_SCARTA_CARTA_3 = "ACTSTATUS_SCARTA_CARTA_3"
     ACTSTATUS_SCARTA_CARTA_4 = "ACTSTATUS_SCARTA_CARTA_4"
+    ACTSTATUS_INTEGRA = "ACTSTATUS_INTEGRA"
     ACTSTATUS_DICHIARA_VERSICOLE_1 = "ACTSTATUS_DICHIARA_VERSICOLE_1"
     ACTSTATUS_DICHIARA_VERSICOLE_2 = "ACTSTATUS_DICHIARA_VERSICOLE_2"
     ACTSTATUS_DICHIARA_VERSICOLE_3 = "ACTSTATUS_DICHIARA_VERSICOLE_3"
@@ -36,7 +34,7 @@ class ActionPartita(Action):
     ACTSTATUS_GIOCO_CARTA_4 = "ACTSTATUS_GIOCO_CARTA_4"
     ACTSTATUS_PRESA = "ACTSTATUS_PRESA"
     ACTSTATUS_RITIRA_SCARTI = "ACTSTATUS_RITIRA_SCARTI"
-    ACTSTATUS_FINAMANO = "ACTSTATUS_FINAMANO"
+    ACTSTATUS_FINEMANO = "ACTSTATUS_FINEMANO"
     ACTSTATUS_CHECK_CADUTO_1 = "ACTSTATUS_CHECK_CADUTO_1"
     ACTSTATUS_CHECK_CADUTO_2 = "ACTSTATUS_CHECK_CADUTO_2"
     ACTSTATUS_CHECK_CADUTO_3 = "ACTSTATUS_CHECK_CADUTO_3"
@@ -56,6 +54,18 @@ class ActionPartita(Action):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def set_primo(self):
+        '''
+        (12a). Le carte vengono giocate in senso antiorario, iniziando dal giocatore seduto alla destra del mazziere.
+        '''
+        try:
+            assert self._fsm.get_mazziere() is not None
+            player = self._fsm.get_mazziere()
+            player = self._fsm.get_next_player(player, True)
+            self._fsm.set_player(player)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def start(self):
         try:
             self.reset()
@@ -68,6 +78,7 @@ class ActionPartita(Action):
             self._primo[POSTAZIONE_NORD] = False
             self._primo[POSTAZIONE_EST] = False
             self._primo[POSTAZIONE_OVEST] = False
+            self.set_primo()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -83,27 +94,22 @@ class ActionPartita(Action):
             txt = ""
             ca = self._fsm.get_carte_mano(player)
 
-            #ca = [Carta(CartaId.PAPA_I),
-            #      Carta(CartaId.PAPA_III), Carta(CartaId.TORO_XXXIV), Carta(CartaId.PAPA_II),
-            #      Carta(CartaId.LEONE_XXXIII), Carta(CartaId.SOLE_XXXVIII), Carta(CartaId.MONDO_XXXIX),
-            #      Carta(CartaId.TROMBA_XL)]
-
             self._fsm.gestisci_carte_versicola(ca, player)
-            self._fsm.marca_punti_versicole(player)
+            pts = self._fsm.marca_punti_versicole(player)
 
-
-            self.show_timed_popup("<p>" + str(player) + ": " + self._fsm.get_versicole_dichiarazione() + "</p><br/>", 0.05)
+            if pts > 0:
+                self.show_timed_popup("<p>" + str(player) + ": " + self._fsm.get_versicole_dichiarazione() + "</p><br/>")
             self._newsts = nextsts
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def manage_scarta(self, player, nextsts):
         try:
-            n_sca = self._fsm.scartare()
+            n_sca = self._fsm.get_num_scarti()
             if n_sca > 0:
                 cc = Strategia.scarta_carte(player, n_sca)
                 for c in cc:
-                    self.man_scarta_carta(c)
+                    self.man_scarta_carta(player, c)
             else:
                 self._newsts = nextsts
         except Exception as e:
@@ -112,8 +118,8 @@ class ActionPartita(Action):
     def manage_prima(self, player, nextsts1, nextsts2):
         try:
             self._fsm.inizializza_versicole(player)
-            c = self._fsm.gioca_prima_carta(player)
-            n_sca = self._fsm.scartare()
+            c = self._fsm.gioca_carta(player)
+            n_sca = self._fsm.get_num_scarti()
             self._fsm.calata(c, player)
             if n_sca > 0:
                 self.show_timed_popup(str(self._fsm.get_player()) + " scarta n=" + str(n_sca) + " carte.")
@@ -133,7 +139,7 @@ class ActionPartita(Action):
 
             if self._status == self.ACTSTATUS_GIOCO_CARTA_1:
                 self._fsm.set_apertura(c)
-            Strategia.on_carta(player, c)
+            #Strategia.on_carta(player, c)
             self._fsm.calata(c, player)
             if nextsts != self.ACTSTATUS_PRESA:
                 self._fsm.update_next_player()
@@ -141,11 +147,19 @@ class ActionPartita(Action):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def manage_fine_mano(self, player):
+        try:
+            self._fsm.on_fine_mano(player)
+            txt = self._fsm.get_text_punti_mano()
+            txt = txt + self._fsm.get_text_resti()
+            self.show_timed_popup(txt)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def update_sub(self):
         try:
-            '''            
-            (12). Le carte vengono giocate in senso antiorario, iniziando dal giocatore seduto alla destra del mazziere.
-              Subito dopo aver giocato la loro prima carta, i giocatori che possiedono una o più versicole devono mostrarle
+            '''
+            (12b).  Subito dopo aver giocato la loro prima carta, i giocatori che possiedono una o più versicole devono mostrarle
               per poterne segnare il valore. Non appena viene raccolta la prima mano, non è più possibile segnare versicole.
              Prendere una mano: Finché è possibile si deve rispondere a ciascun seme, tarocchi inclusi; nel caso non si
              possiedano carte del seme giocato è necessario giocare un tarocco (ma non è obbligatorio surtagliare,
@@ -160,6 +174,7 @@ class ActionPartita(Action):
                 if self._fsm.simulated():
                     c = self.manage_prima(player, self.ACTSTATUS_SCARTA_CARTA_1, self.ACTSTATUS_DICHIARA_VERSICOLE_1)
                     self._fsm.set_apertura(c)
+                    #self._fsm.set_deck_visible(DeckId.DECK_SCARTO, player.get_position(), False)
             elif self._status == self.ACTSTATUS_SCARTA_CARTA_1:
                 if self._fsm.simulated():
                     self.manage_scarta(player, self.ACTSTATUS_DICHIARA_VERSICOLE_1)
@@ -192,6 +207,18 @@ class ActionPartita(Action):
             # Fourth player
             elif self._status == self.ACTSTATUS_PRIMA_CARTA_4:
                 if self._fsm.simulated():
+                    # Sono state prese tutte le carte della fola, dopo lo scarto preleva la ventunesima
+                    """
+                    (6b). Attenzione: se sono state rubate o pigliate alcune carte, ne devono essere scartate altrettante.
+                    Queste carte vengono poste coperte sul tavolo, davanti al giocatore, finché non viene giocata la prima carta.
+                    Finalmente, ogni giocatore dovrebbe ora avere 21 carte e quello che siede alla destra del mazziere può giocare
+                    la sua prima carta.
+                    -- Prende la prima delle scartate?? --
+                    """
+                    if self._fsm.get_deck_len(DeckId.DECK_MANO, player) < 21:
+                        p = self._fsm.get_carte(DeckId.DECK_POZZO)
+                        self._fsm.sposta_carta(p[0], DeckId.DECK_POZZO, DeckId.DECK_MANO, player)
+                    # ----------------
                     self.manage_prima(player, self.ACTSTATUS_SCARTA_CARTA_4, self.ACTSTATUS_DICHIARA_VERSICOLE_4)
             elif self._status == self.ACTSTATUS_SCARTA_CARTA_4:
                 if self._fsm.simulated():
@@ -219,35 +246,33 @@ class ActionPartita(Action):
                 self._fsm.update_next_player()
                 self._newsts = self.ACTSTATUS_CHECK_CADUTO_2
             elif self._status == self.ACTSTATUS_CHECK_CADUTO_2:
-                self.check_caduto()
+                self.check_caduto(self._fsm.get_player())
                 self._fsm.update_next_player()
                 self._newsts = self.ACTSTATUS_CHECK_CADUTO_3
             elif self._status == self.ACTSTATUS_CHECK_CADUTO_3:
-                self.check_caduto()
+                self.check_caduto(self._fsm.get_player())
                 self._fsm.update_next_player()
                 self._newsts = self.ACTSTATUS_CHECK_CADUTO_4
             elif self._status == self.ACTSTATUS_CHECK_CADUTO_4:
-                self.check_caduto()
+                self.check_caduto(self._fsm.get_player())
                 self._fsm.update_next_player()
-                if self._fsm.get_num_carte_mano(self._winner) > 0:
+                if self._fsm.get_deck_len(DeckId.DECK_MANO, self._winner) > 0:
                     self._newsts = self.ACTSTATUS_GIOCO_CARTA_1
                 else:
                     self._newsts = self.ACTSTATUS_END
-            elif self._status == self.ACTSTATUS_FINAMANO:
-                    self._newsts = self.ACTSTATUS_END
+            elif self._status == self.ACTSTATUS_FINEMANO:
+                self._fsm.on_restore_mano()
+                self._newsts = self.ACTSTATUS_END
             else:
                 pass
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def man_scarta_carta(self, c):
+    def man_scarta_carta(self, player, c):
         try:
-            player = self._fsm.get_player()
-            rubate = self._fsm.get_deck(DeckId.DECK_RUBATE, player.get_position())
-            if self._fsm.player_has_carta(self._fsm.get_player(), c.get_id()):
-                self._fsm.giocatore_scarta_carta(c, player)
-                self._fsm.move_card_and_repos(rubate[0], DeckId.DECK_RUBATE, DeckId.DECK_MANO, FRONTE_SCOPERTA, player)
-            if self._fsm.scartare() <= 0:
+            self._fsm.scarta_sub(player, c)
+
+            if self._fsm.get_num_scarti() <= 0:
                 if self._status == self.ACTSTATUS_SCARTA_CARTA_1:
                     self._newsts = self.ACTSTATUS_DICHIARA_VERSICOLE_1
                 elif self._status == self.ACTSTATUS_SCARTA_CARTA_2:
@@ -261,38 +286,38 @@ class ActionPartita(Action):
 
     def man_prima_carta_click(self, c):
         try:
-            if self._fsm.player_has_carta(self._fsm.get_player(), c.get_id()) and self._fsm.is_giocabile(c.get_id()):
+            if self._fsm.is_giocabile(c.get_id()) and self._fsm.player_has_carta(self._fsm.get_player(), c):
                 if self._status == self.ACTSTATUS_PRIMA_CARTA_1:
                     self._fsm.set_apertura(c)
                     self._fsm.inizializza_versicole()
                     self._fsm.calata(c)
-                    if self._fsm.scartare() > 0:
+                    if self._fsm.get_num_scarti() > 0:
                         self._newsts = self.ACTSTATUS_SCARTA_CARTA_1
-                        self.show_timed_popup(str(self._fsm.get_player()) + " scarta n=" + str(self._fsm.scartare()) + " carte.")
+                        self.show_timed_popup(str(self._fsm.get_player()) + " scarta n=" + str(self._fsm.get_num_scarti()) + " carte.")
                     else:
                         self._newsts = self.ACTSTATUS_DICHIARA_VERSICOLE_1
                 elif self._status == self.ACTSTATUS_PRIMA_CARTA_2:
                     self._fsm.inizializza_versicole()
                     self._fsm.calata(c)
-                    if self._fsm.scartare() > 0:
+                    if self._fsm.get_num_scarti() > 0:
                         self._newsts = self.ACTSTATUS_SCARTA_CARTA_2
-                        self.show_timed_popup(str(self._fsm.get_player()) + " scarta n=" + str(self._fsm.scartare()) + " carte.")
+                        self.show_timed_popup(str(self._fsm.get_player()) + " scarta n=" + str(self._fsm.get_num_scarti()) + " carte.")
                     else:
                         self._newsts = self.ACTSTATUS_DICHIARA_VERSICOLE_2
                 elif self._status == self.ACTSTATUS_PRIMA_CARTA_3:
                     self._fsm.inizializza_versicole()
                     self._fsm.calata(c)
-                    if self._fsm.scartare() > 0:
+                    if self._fsm.get_num_scarti() > 0:
                         self._newsts = self.ACTSTATUS_SCARTA_CARTA_3
-                        self.show_timed_popup(str(self._fsm.get_player()) + " scarta n=" + str(self._fsm.scartare()) + " carte.")
+                        self.show_timed_popup(str(self._fsm.get_player()) + " scarta n=" + str(self._fsm.get_num_scarti()) + " carte.")
                     else:
                         self._newsts = self.ACTSTATUS_DICHIARA_VERSICOLE_3
                 elif self._status == self.ACTSTATUS_PRIMA_CARTA_4:
                     self._fsm.inizializza_versicole()
                     self._fsm.calata(c)
-                    if self._fsm.scartare() > 0:
+                    if self._fsm.get_num_scarti() > 0:
                         self._newsts = self.ACTSTATUS_SCARTA_CARTA_4
-                        self.show_timed_popup(str(self._fsm.get_player()) + " scarta n=" + str(self._fsm.scartare()) + " carte.")
+                        self.show_timed_popup(str(self._fsm.get_player()) + " scarta n=" + str(self._fsm.get_num_scarti()) + " carte.")
                     else:
                         self._newsts = self.ACTSTATUS_DICHIARA_VERSICOLE_4
                 else:
@@ -316,7 +341,7 @@ class ActionPartita(Action):
                    self._status == self.ACTSTATUS_SCARTA_CARTA_2 or\
                    self._status == self.ACTSTATUS_SCARTA_CARTA_3 or\
                    self._status == self.ACTSTATUS_SCARTA_CARTA_4:
-                    self.man_scarta_carta(c)
+                    self.man_scarta_carta(self._fsm.get_player(), c)
 
                 elif self._status == self.ACTSTATUS_DICHIARA_VERSICOLE_1 or\
                    self._status == self.ACTSTATUS_DICHIARA_VERSICOLE_2 or\
@@ -334,7 +359,7 @@ class ActionPartita(Action):
                    self._status == self.ACTSTATUS_PRIMA_CARTA_3 or\
                    self._status == self.ACTSTATUS_PRIMA_CARTA_4:
                     if not self._fsm.simulated() and (self._fsm.get_player() == self._winner or not self._fsm.is_caduto()):
-                        if self._fsm.player_has_carta(self._fsm.get_player(), cid) and self._fsm.is_giocabile(cid):
+                        if self._fsm.player_has_carta(self._fsm.get_player(), c) and self._fsm.is_giocabile(cid):
                             if self._status == self.ACTSTATUS_GIOCO_CARTA_1:
                                 self._fsm.set_apertura(c)
                                 self._newsts = self.ACTSTATUS_GIOCO_CARTA_2
@@ -368,7 +393,7 @@ class ActionPartita(Action):
             for p in self._game_man.get_giocatori():
                 if self._fsm.simulated():
                     self._fsm.giocatore_scarta(p.get_position())
-                    self._fsm.mostra_mazzo(DeckId.DECK_POZZO, p.get_position())
+                    self._fsm.show_deck_packed(DeckId.DECK_POZZO, p.get_position())
             self._scarto = True
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -395,41 +420,45 @@ class ActionPartita(Action):
             c2 = self._fsm.get_carte_in_tavola_player(player2)
             assert len(c1) == 1
             assert len(c2) == 1
+            '''().  Ogni volta che una carta di conto viene presa dalla coppia avversaria, questa ne segna subito
+                il valore. Si dice che muore rispettivamente un 3, un 5 o un 10 in base al valore della carta.
+                 La perdita di una carta di conto è quindi una perdita tripla: non se ne segnerà infatti alla fine
+                il valore, valore che verrà invece segnato dagli avversari che in più segnano subito un bonus extra
+                per la carta che muore. Se una carta viene catturata dal compagno, si dice che muore in casa e
+                non vale come extra.
+            '''
             if is_conto(c1[0]):
+                # I punti persi dagli avversari si contano due volte, alla presa e nel conto finale
+                self._fsm.marca_punti(c1[0], self._winner)
                 echo_message("Cade " + str(c1[0]))
             if is_conto(c2[0]):
+                # I punti persi dagli avversari si contano due volte, alla presa e nel conto finale
+                self._fsm.marca_punti(c2[0], self._winner)
                 echo_message("Cade " + str(c2[0]))
-            self._fsm.raccogli_carte_calate(self._winner, player1)
-            self._fsm.raccogli_carte_calate(self._winner, player2)
+            self._fsm.raccogli_carte(self._winner, player1, True)
+            self._fsm.raccogli_carte(self._winner, player2, True)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def presa_coppia(self, player1):
         try:
             player2 = self._fsm.get_compagno(player1)
-            self._fsm.raccogli_carte_calate(self._winner, player1)
-            self._fsm.raccogli_carte_calate(self._winner, player2)
+            self._fsm.raccogli_carte(self._winner, player1)
+            self._fsm.raccogli_carte(self._winner, player2)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def presa(self):
         try:
-            '''().  Ogni volta che una carta di conto viene presa dalla coppia avversaria, questa ne segna subito
-     il valore. Si dice che muore rispettivamente un 3, un 5 o un 10 in base al valore della carta. La perdita di una
-     carta di conto è quindi una perdita tripla: non se ne segnerà infatti alla fine il valore, valore che verrà invece
-     segnato dagli avversari che in più segnano subito un bonus extra per la carta che muore. Se una carta viene
-     catturata dal compagno, si dice che muore in casa e non vale come extra.
-            '''
-            c_list = self._fsm.get_carte_in_tavola()
-            (self._winner, c_win) = self.get_winner(c_list)
+            (self._winner, c_win) = self._fsm.get_winner()
             assert self._winner is not None
-            self._fsm._delegate_append_html_text("Mano a " + str(self._winner) + " con " + str(c_win))
+            echo_message("Mano a " + str(self._winner) + " con " + str(c_win))
 
             self.presa_coppia(self._winner)
             self.presa_avversari(self._fsm.get_next_player(self._winner))
 
             self._fsm.set_player(self._winner)
-            self._fsm._delegate_presa(self._winner, c_list)
+            #self._fsm._delegate_presa(self._winner, c_list)
 
             '''
             (). Se un giocatore non ha più tarocchi si dice che cade e può scoprire tutte le carte che gli restano;
@@ -440,15 +469,12 @@ class ActionPartita(Action):
              possono in qualsiasi momento guardare tutte le carte prese dalla coppia di cui fanno parte.
             '''
             self._fsm._cid_apertura = None
-            if self._fsm.get_num_carte_mano(self._winner) > 0:
+            if self._fsm.get_deck_len(DeckId.DECK_MANO, self._winner) > 0:
                 self._newsts = self.ACTSTATUS_CHECK_CADUTO_1
             else:
-                txt = self._fsm.get_text_punti_mano()
-                for p in self._fsm.get_giocatori():
-                    p.on_fine_mano()
-                txt = txt + self._fsm.get_text_punti_totale()
-                self.show_timed_popup(txt)
-                self._newsts = self.ACTSTATUS_FINAMANO
+                self._fsm._delegate_append_html_text("Ultima presa: +10 punti")
+                self.manage_fine_mano(self._winner)
+                self._newsts = self.ACTSTATUS_FINEMANO
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -465,30 +491,5 @@ class ActionPartita(Action):
             if not self._fsm.is_caduto(player) and self._fsm.cascare_enabled(player):
                 self.show_timed_popup("<p>Cade " + str(player) + " e scopre le sue carte</p>", 1)
                 self._fsm.on_cade(player)
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def get_winner(self, clist):
-        try:
-            winner = None
-            c_s = copy(self._fsm.get_carte_in_tavola_pos("Sud"))
-            c_w = copy(self._fsm.get_carte_in_tavola_pos("Ovest"))
-            c_n = copy(self._fsm.get_carte_in_tavola_pos("Nord"))
-            c_e = copy(self._fsm.get_carte_in_tavola_pos("Est"))
-
-            c_win = get_greater(clist)
-
-            if c_win in c_s:
-                winner = self._fsm.get_player_at_pos("Sud")
-            elif c_win in c_w:
-                winner = self._fsm.get_player_at_pos("Ovest")
-            elif c_win in c_n:
-                winner = self._fsm.get_player_at_pos("Nord")
-            elif c_win in c_e:
-                winner = self._fsm.get_player_at_pos("Est")
-            else:
-                echo_message("Warning no winner")
-                assert True
-            return (winner, c_win)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)

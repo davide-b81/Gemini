@@ -10,14 +10,13 @@ from decks.carta_id import is_cartiglia, is_sopraventi, count_seme, Palo, seme_n
 from game.germini.action import Action
 from game.germini.punteggi import carte_conto, carte_sopraventi
 from game.germini.strategia import Strategia
-from main.exception_man import ExceptionMan
-from main.globals import echo_message, FRONTE_SCOPERTA
-from oggetti.posizioni import DeckId
+from main.globals import *
+from oggetti.posizioni import *
 
 
 class ActionFola(Action):
-    ACTSTATUS_FOLA_MARCA = "ACTSTATUS_FOLA_MARCA"
-    ACTSTATUS_FOLA_PIGLIA = "ACTSTATUS_FOLA_PIGLIA"
+    ACTSTATUS_PIGLIA_I = "ACTSTATUS_PIGLIA_I"
+    ACTSTATUS_PIGLIA_II = "ACTSTATUS_PIGLIA_II"
     ACTSTATUS_FOLA_VEDI = "ACTSTATUS_FOLA_VEDI"
     ACTSTATUS_SCARTA_ANNUNCIA = "ACTSTATUS_SCARTA_ANNUNCIA"
     ACTSTATUS_SCARTA = "ACTSTATUS_SCARTA"
@@ -41,10 +40,16 @@ class ActionFola(Action):
               In caso contrario scopre la sua ventunesima carta segnando il suo eventuale valore.
              '''
             self._fsm.set_player(self._fsm.get_mazziere())
-            self._fsm.fai_la_fola()
-            self._fsm.mostra_mazzo(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
-            self._fsm.set_lato_mazzo(DeckId.DECK_FOLA, FRONTE_SCOPERTA)
-            self._newsts = self.ACTSTATUS_FOLA_MARCA
+            self._fsm.change_deck(DeckId.DECK_MAZZO, None, DeckId.DECK_FOLA, None)
+            self._fsm.set_deck_visible(DeckId.DECK_FOLA, self._fsm.get_player().get_position())
+
+            """
+            (6). Le carte che sono avanzate vengono ora dette fola. Da queste il mazziere scopre la prima carta e,
+            se si tratta di una carta di conto o di un sopraventi la pone sul tavolo segnando i punti a suo vantaggio.
+            """
+            self._fsm.show_deck_packed(DeckId.DECK_FOLA, FRONTE_SCOPERTA)
+            print(str(self._fsm.get_player()) + " marca i punti")
+            self._newsts = self.ACTSTATUS_PIGLIA_I
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -68,7 +73,7 @@ class ActionFola(Action):
         """
         try:
             txt = ""
-            fo = self._fsm.get_deck(DeckId.DECK_FOLA)
+            fo = self._fsm.get_carte(DeckId.DECK_FOLA)
             n = count_seme(fo, seme)
             if n == 1:
                 txt = "<br/>Una carta di " + seme_name[seme]
@@ -88,123 +93,122 @@ class ActionFola(Action):
             txt = "La fola contiene" + \
                   self.fola_descrive_sub(Palo.DENARI) + self.fola_descrive_sub(Palo.COPPE) + \
                   self.fola_descrive_sub(Palo.SPADE) + self.fola_descrive_sub(Palo.BASTONI)
-            self.show_timed_popup("<p>" + txt + "</p>", 0.05)
+            self.show_timed_popup("<p>" + txt + "</p>")
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def update_sub(self):
         try:
-            if self._status == self.ACTSTATUS_FOLA_MARCA:
+            if self._status == self.ACTSTATUS_PIGLIA_I:
                 if self._fsm.simulated():
                     c = self._fsm.get_prima(DeckId.DECK_FOLA, self._fsm.get_player())
                     if c is not None:
                         if is_sopraventi(c.get_id()) or c.get_id() in carte_conto:
-                            self._fsm.move_card_and_repos(c, DeckId.DECK_FOLA, DeckId.DECK_RUBATE, FRONTE_SCOPERTA, self._fsm.get_player())
-                            self._fsm.mostra_rubate(self._fsm.get_position_turno())
+                            self._fsm.sposta_e_stendi(c, DeckId.DECK_FOLA, DeckId.DECK_RUBATE, FRONTE_COPERTA, self._fsm.get_player())
+                            #self._fsm.mostra_rubate(self._fsm.get_position_turno())
                             if c.get_id() in carte_conto:
-                                print(str(self._fsm.get_player()) + " prende " + str(c) + " e marca " + str(carte_conto[c.get_id()]) + "punti")
+                                print(str(self._fsm.get_player()) + " piglia " + str(c) + " e marca " + str(carte_conto[c.get_id()]) + "punti")
+                            else:
+                                print(str(self._fsm.get_player()) + " piglia " + str(c) + " (sopraventi).")
                         else:
-                            self._fsm.mostra_fola(self._fsm.get_mazziere())
+                            self._fsm.mostra_fola(self._fsm.get_mazziere(), FRONTE_COPERTA)
                             print("Finisce il rubare di " + str(self._fsm.get_player()))
-                            self._newsts = self.ACTSTATUS_FOLA_DESCRIVE
+                            self._newsts = self.ACTSTATUS_PIGLIA_II
+                            self.wait_seconds(2)
                     else:
-                        raise NotImplemented("Sono state rubate tutte le 13 carte...")
-            elif self._status == self.ACTSTATUS_FOLA_VEDI:
-                #if not self._fsm.simulated():
-                #    self._fsm.mostra_fola(self._fsm.get_player())
-                self._newsts = self.ACTSTATUS_FOLA_PIGLIA
-                print(str(self._fsm.get_player()) + " piglia le carte di conto")
+                        print("Sono state rubate tutte le carte!")
+                        self._newsts = self.ACTSTATUS_END
 
-            elif self._status == self.ACTSTATUS_FOLA_PIGLIA:
+            elif self._status == self.ACTSTATUS_FOLA_VEDI:
+                if not self._fsm.simulated():
+                    self._fsm.show_deck_plain(DeckId.DECK_FOLA, FRONTE_SCOPERTA, self._fsm.get_player())
+                else:
+                    self._fsm.show_deck_plain(DeckId.DECK_FOLA, FRONTE_COPERTA, self._fsm.get_player())
+                    self.wait_seconds(2)
+                print(str(self._fsm.get_player()) + " piglia le carte di conto")
+                self._newsts = self.ACTSTATUS_PIGLIA_II
+
+            elif self._status == self.ACTSTATUS_PIGLIA_II:
+                """
+                Il mazziere prende dalla fola le carte di conto senza segnarne il valore
+                """
                 if self._fsm.simulated():
                     if not self._fsm.da_pigliare():
                         player = self._fsm.get_compagno_mazziere()
                         self._fsm.set_player(player)
-                        self._fsm.passa_fola(player)
+                        if self._fsm.simulated():
+                            self._fsm.passa_fola(player, FRONTE_COPERTA)
+                        else:
+                            self._fsm.passa_fola(player, FRONTE_SCOPERTA)
                         self._newsts = self.ACTSTATUS_FOLA_DESCRIVE
                         print("Passa la fola al compagno")
                     else:
-                        c = Strategia.manager.get_piglia()
-                        assert c is not None
-                        assert self._fsm.deck_contains(c.get_id(), DeckId.DECK_FOLA)
-                        self._fsm.sposta_carta(c, DeckId.DECK_FOLA, DeckId.DECK_RUBATE, self._fsm.get_player())
-                        self._fsm.mostra_rubate(self._fsm.get_position_turno())
-                        print(str(self._fsm.get_player()) + " piglia " + str(c))
+                        c = Strategia.get_piglia(self._fsm.get_player())
+                        if c is not None:
+                            assert self._fsm.deck_contains(DeckId.DECK_FOLA, c)
+                            self._fsm.sposta_carta(c, DeckId.DECK_FOLA, DeckId.DECK_RUBATE, self._fsm.get_player())
+                            self._fsm.mostra_rubate(self._fsm.get_position_turno())
+                            print(str(self._fsm.get_player()) + " piglia " + str(c))
 
             elif self._status == self.ACTSTATUS_FOLA_DESCRIVE:
                 if not self._wait_popup:
                     print(str(self._fsm.get_player()) + " guarda le carte rimaste nella fola e le comunica agli altri")
                     self.fola_descrive()
-                    """
-                    (6b). Attenzione: se sono state rubate o pigliate alcune carte, ne devono essere scartate altrettante. 
-                    Queste carte vengono poste coperte sul tavolo, davanti al giocatore, finché non viene giocata la prima carta.
-                    Finalmente, ogni giocatore dovrebbe ora avere 21 carte e quello che siede alla destra del mazziere può giocare
-                    la sua prima carta.
-                    """
                     player = self._fsm.get_mazziere()
                     self._fsm.set_player(player)
                     self._fsm.nascondi_fola(player)
-                    if self._fsm.scartare(player):
+                    if self._fsm.get_num_scarti(player) > 0:
                         self._newsts = self.ACTSTATUS_SCARTA_ANNUNCIA
                     else:
                         self._newsts = self.ACTSTATUS_END
             elif self._status == self.ACTSTATUS_SCARTA_ANNUNCIA:
                 if not self._wait_popup:
-                    self.show_timed_popup(str(self._fsm.get_player()) + " scarta n=" + str(self._fsm.scartare()) + " carte.")
+                    self.show_timed_popup(str(self._fsm.get_player()) + " scarta n=" + str(self._fsm.get_num_scarti()) + " carte.")
                     self._newsts = self.ACTSTATUS_SCARTA
             elif self._status == self.ACTSTATUS_SCARTA:
                 if not self._wait_popup:
                     if self._fsm.simulated():
-                        rubate = self._fsm.get_deck(DeckId.DECK_RUBATE, self._fsm.get_position_turno())
+                        self._fsm.get_carte(DeckId.DECK_RUBATE, self._fsm.get_player())
                         self._fsm.giocatore_scarta(self._fsm.get_player())
-                        self._newsts = self.ACTSTATUS_END
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def man_scarta_carta_click(self, c):
-        try:
-            pass
-                #self._fsm.mostra_scarto(self._fsm.get_player())
-                #self._game_man.stendi_deck(DeckId.DECK_MANO, player.get_position())
+                        if not self._fsm.get_num_scarti(self._fsm.get_player()):
+                            self._newsts = self.ACTSTATUS_END
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def on_carta_click(self, cid):
         try:
-            if self._status == self.ACTSTATUS_FOLA_MARCA:
-                if not self._fsm.simulated(self._fsm.get_player()) and self._fsm.deck_contains(cid, DeckId.DECK_FOLA):
+            c = self._fsm.get_carta(cid)
+            if self._status == self.ACTSTATUS_PIGLIA_I:
+                if not self._fsm.simulated(self._fsm.get_player()):
                     c = self._fsm.get_prima(DeckId.DECK_FOLA, self._fsm.get_player())
                     if (c is not None) and (str(cid) == c.get_name()):
                         if is_sopraventi(c.get_id()):
-                            self._fsm.move_card_and_repos(c, DeckId.DECK_FOLA, DeckId.DECK_RUBATE, FRONTE_SCOPERTA, self._fsm.get_player())
+                            self._fsm.sposta_e_stendi(c, DeckId.DECK_FOLA, DeckId.DECK_RUBATE, FRONTE_SCOPERTA, self._fsm.get_player())
                         elif c.get_id() in carte_conto:
-                            self._fsm.move_card_and_repos(c, DeckId.DECK_FOLA, DeckId.DECK_RUBATE, FRONTE_SCOPERTA, self._fsm.get_player())
+                            self._fsm.sposta_e_stendi(c, DeckId.DECK_FOLA, DeckId.DECK_RUBATE, FRONTE_SCOPERTA, self._fsm.get_player())
                             print(str(self._fsm.get_player()) + " marca i punti di " + str(c) + ": " + str(carte_conto[c.get_id()]) + " punti.")
                         else:
-                            self._fsm.mostra_fola(self._fsm.get_player())
-                            #TODO: Vede le prime 13 carte
+                            self._fsm.mostra_fola(self._fsm.get_mazziere(), FRONTE_SCOPERTA)
                             print("Finisce il rubare del mazziere")
-                            self._newsts = self.ACTSTATUS_FOLA_VEDI
+                            self._newsts = self.ACTSTATUS_PIGLIA_II
                     else:
-                        self._fsm.mostra_fola(self._fsm.get_player())
-                        #TODO: Vede le prime 13 carte
+                        self._fsm.mostra_fola(self._fsm.get_player(), FRONTE_SCOPERTA)
                         print("Finisce il rubare del mazziere")
-                        self._newsts = self.ACTSTATUS_FOLA_VEDI
-            elif self._status == self.ACTSTATUS_FOLA_VEDI:
-                pass
-            elif self._status == self.ACTSTATUS_FOLA_PIGLIA:
-                c = self._fsm.get_carta(cid)
-                if not self._fsm.simulated() and self._fsm.deck_contains(c.get_id(), DeckId.DECK_FOLA):
+                        self._newsts = self.ACTSTATUS_PIGLIA_II
+            elif self._status == self.ACTSTATUS_PIGLIA_II:
+                if not self._fsm.simulated() and self._fsm.deck_contains(DeckId.DECK_FOLA, c, self._fsm.get_player()):
                     if c.get_id() in carte_conto or c.get_id() in carte_sopraventi:
-                        self._fsm.move_card_and_repos(c, DeckId.DECK_FOLA, DeckId.DECK_RUBATE, FRONTE_SCOPERTA, self._fsm.get_player())
+                        self._fsm.sposta_e_stendi(c, DeckId.DECK_FOLA, DeckId.DECK_RUBATE, FRONTE_SCOPERTA, self._fsm.get_player())
                         self._fsm.mostra_rubate(self._fsm.get_position_turno())
                         print(str(self._fsm.get_player()) + " piglia " + str(c))
                     if not self._fsm.da_pigliare():
                         player = self._fsm.get_compagno_mazziere()
                         self._fsm.set_player(player)
-                        self._fsm.passa_fola(player)
+                        self._fsm.passa_fola(player, FRONTE_COPERTA)
                         self._newsts = self.ACTSTATUS_FOLA_DESCRIVE
                         print("Passa la fola al compagno")
+            elif self._status == self.ACTSTATUS_FOLA_VEDI:
+                pass
             elif self._status == self.ACTSTATUS_PASSA:
                 pass
             elif self._status == self.ACTSTATUS_FOLA_DESCRIVE:
@@ -212,9 +216,9 @@ class ActionFola(Action):
             elif self._status == self.ACTSTATUS_SCARTA_ANNUNCIA:
                 pass
             elif self._status == self.ACTSTATUS_SCARTA:
-                if not self._fsm.simulated() and self._fsm.player_has_carta(self._fsm.get_player(), cid):
-                    self._fsm.scarta_sub(cid)
-                    if not self._fsm.scartare(self._fsm.get_player()):
+                if not self._fsm.simulated() and self._fsm.player_has_carta(self._fsm.get_player(), c):
+                    self._fsm.scarta_sub(self._fsm.get_player(), c)
+                    if not self._fsm.get_num_scarti(self._fsm.get_player()):
                         self._newsts = self.ACTSTATUS_END
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)

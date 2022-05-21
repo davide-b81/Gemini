@@ -9,7 +9,7 @@ from decks.carta_id import is_cartiglia
 from game.germini.action import Action
 from main.exception_man import ExceptionMan
 from main.globals import echo_message, FRONTE_COPERTA
-from oggetti.posizioni import DeckId
+from oggetti.posizioni import *
 
 '''
 (1). Il mazziere scozza le carte terminando solo dopo aver verificato che in fondo al mazzo vi sia una cartiglia.
@@ -35,7 +35,7 @@ class ActionMescola(Action):
             assert self._fsm.get_mazziere() is not None
             self._fsm.restore_manche()
             self._fsm.mescola_mazzo()
-            self._fsm.mostra_mazzo(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
+            self._fsm.show_deck_packed(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
             if self._globals.controlla_ultima():
                 self._newsts = self.ACTSTATUS_ROVESCIA
             else:
@@ -54,12 +54,12 @@ class ActionMescola(Action):
             if self._status == self.ACTSTATUS_ROVESCIA:
                 if self._fsm.simulated(self._fsm.get_mazziere()):
                     self._fsm.capovolgi_mazzo()
-                    self._fsm.mostra_mazzo(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
+                    self._fsm.show_deck_packed(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
                     self._newsts = self.ACTSTATUS_VEDIULTIMA
             elif self._status == self.ACTSTATUS_CONTROLLA:
                 if self._fsm.simulated(self._fsm.get_mazziere()):
                     self._fsm.capovolgi_mazzo()
-                    self._fsm.mostra_mazzo(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
+                    self._fsm.show_deck_packed(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
                     c = self._fsm.get_prima(DeckId.DECK_MAZZO, self._fsm.get_player())
                     if is_cartiglia(c.get_id()):
                         print(_("Trovata: ") + str(c) + _(". Carte mescolate."))
@@ -68,7 +68,7 @@ class ActionMescola(Action):
                     else:
                         print(_("Trovata: ") + str(c) + _(". Mescola di nuovo."))
                         self._fsm.raddrizza_mazzo()
-                        self._fsm.mostra_mazzo(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
+                        self._fsm.show_deck_packed(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
                         self.start()
             elif self._status == self.ACTSTATUS_VEDIULTIMA:
                 c = self._fsm.get_ultima(DeckId.DECK_MAZZO, self._fsm.get_player())
@@ -80,12 +80,12 @@ class ActionMescola(Action):
         try:
             if self._status == self.ACTSTATUS_ROVESCIA:
                 self._fsm.capovolgi_mazzo()
-                self._fsm.mostra_mazzo(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
+                self._fsm.show_deck_packed(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
                 self._newsts = self.ACTSTATUS_VEDIULTIMA
 
             if self._status == self.ACTSTATUS_CONTROLLA:
                 self._fsm.capovolgi_mazzo()
-                self._fsm.mostra_mazzo(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
+                self._fsm.show_deck_packed(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
                 c = self._fsm.get_prima(DeckId.DECK_MAZZO, self._fsm.get_player())
                 if is_cartiglia(c.get_id()):
                     print(_("Trovata: ") + str(c) + _(". Carte mescolate."))
@@ -94,7 +94,7 @@ class ActionMescola(Action):
                 else:
                     print(_("Trovata: ") + str(c) + _(". Mescola di nuovo."))
                     self._fsm.raddrizza_mazzo()
-                    self._fsm.mostra_mazzo(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
+                    self._fsm.show_deck_packed(DeckId.DECK_MAZZO, self._fsm.get_mazziere().get_position())
                     self.start()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
