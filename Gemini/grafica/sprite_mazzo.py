@@ -39,7 +39,7 @@ class SpriteMazzo(MySprite):
         self.visible = False
 
     def get_nome(self):
-        return "Mazzo"
+        return "Sprite mazzo"
 
     def hide(self):
         try:
@@ -48,8 +48,6 @@ class SpriteMazzo(MySprite):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def get_position(self):
-        return self.rect.center
 
     def move(self, pos):
         if self._pos_dest != pos:
@@ -57,6 +55,7 @@ class SpriteMazzo(MySprite):
 
     def set_lato(self, coperto=True):
         try:
+            assert isinstance(coperto, bool)
             if coperto:
                 self.image = self.img_back
             #        self.rect = self.image.get_rect()
@@ -69,6 +68,9 @@ class SpriteMazzo(MySprite):
             #        echo_message("Copri carta")
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+
+    def get_position(self):
+        return self.rect.center
 
     def set_position(self, pos, instant):
         try:

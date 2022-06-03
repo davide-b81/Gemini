@@ -113,12 +113,14 @@ class MySprite(pygame.sprite.Sprite):
 
     def get_visible(self):
         try:
+            assert isinstance(self._visible, bool)
             return self._visible
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def set_visible(self, visible=True):
         try:
+            assert isinstance(visible, bool)
             self._visible = visible
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -143,6 +145,53 @@ class MySprite(pygame.sprite.Sprite):
             self.rect.y = pos[1]
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+
+    @property
+    def x(self):
+        return self._pos[0]
+
+    @x.setter
+    def x(self, coo):
+        self._pos = (coo, self._pos[1])
+        self._pos_dest = (coo, self._pos[1])
+
+    @property
+    def y(self):
+        return self._pos[1]
+
+    @y.setter
+    def y(self, coo):
+        self._pos = (self._pos[0], coo)
+        self._pos_dest = (self._pos_dest[0], coo)
+
+    @property
+    def z(self):
+        return self._z_index
+
+    def get_z(self):
+        try:
+            if self._hover:
+                return 0
+            else:
+                return self._z_index
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def set_z(self, z=0):
+        #print(str(self) + " set sprite hoverable z = " + str(self._z_index))
+        self._z_index = z
+
+    @z.setter
+    def z(self, i):
+        self._z_index = i
+
+    @property
+    def visible(self):
+        return self._visible
+
+    @visible.setter
+    def visible(self, v):
+        self._visible = v
 
     def set_position(self, pos, inst):
         try:
@@ -189,7 +238,6 @@ class MySprite(pygame.sprite.Sprite):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-
     def get_hoverable(self):
         return self._hoverable
 
@@ -204,19 +252,6 @@ class MySprite(pygame.sprite.Sprite):
             self._hover = enable
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
-
-    def get_z(self):
-        try:
-            if self._hover:
-                return 0
-            else:
-                return self._z_index
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def set_z(self, z=0):
-        #print(str(self) + " set sprite hoverable z = " + str(self._z_index))
-        self._z_index = z
 
     def get_rect(self):
         try:

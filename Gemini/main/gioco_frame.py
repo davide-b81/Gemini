@@ -3,12 +3,14 @@ Created on 19 gen 2022
 
 @author: david
 '''
+from json import JSONDecoder
 from time import strftime
 
 import pygame_gui
 from pygame_gui.core import ObjectID
 from pygame_gui.elements import UITextBox, UILabel
 
+from main.game_manager import GiocoManager
 from main.globals import *
 from decks.carta_id import CartaId
 from images.image_manager import ImageManager
@@ -234,6 +236,7 @@ class GiocoFrame(object):
             self._sprite_man.reset()
             if self._popup_box is not None:
                 self._popup_box.visible=False
+            self._game_man.on_reset()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -245,12 +248,30 @@ class GiocoFrame(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def dump_gioco(self, file):
+    def on_serialize(self, file):
         try:
-            self._game_man.dump_gioco(file)
+            self._running = False
+            print(" =======> Save status in JSON ==>")
+            txt = self._game_man.on_serialize()
+            print("Save status in JSON <==")
+            file.write(txt)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def on_deserialize(self, file):
+        try:
+            # read all lines at once
+            self.on_termina()
+            self.on_restore()
+            all_of_it = file.read()
+            print(" =======> Load status from JSON ==>")
+            f = JSONDecoder(object_hook=self._game_man.fromJSON).decode(all_of_it)
+            print("Load status from JSON <==")
+            self._game_man.on_deserialize_complete()
+            self.on_redraw()
+            self._running = True
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
     def on_move(self, c, pos, inst=False):
         try:
@@ -302,6 +323,7 @@ class GiocoFrame(object):
 
     def on_termina(self):
         try:
+            self._game_man.termina_gioco()
             if self._box_punti is not None:
                 self._box_punti.hide()
                 #self.appended_text = ""
@@ -310,7 +332,6 @@ class GiocoFrame(object):
                 del self._box_punti
                 self._box_punti = None
             self.draw_box_punteggi("")
-            self._game_man.termina_gioco()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 

@@ -30,3 +30,8 @@ class FsmTarocchi(FsmGioco):
 
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+
+    def reprJSON(self):
+        ret = super().reprJSON()
+        ret['_id_fsm']=self._id_fsm
+        return ret

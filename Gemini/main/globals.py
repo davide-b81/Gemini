@@ -60,14 +60,26 @@ class Globals(object):
     def __init__(self):
         self._evt_queue = queue.Queue()
 
+    def get_carta(self, id):
+        for c in self._carte_tutte:
+            if c.get_id() == id:
+                return c
+        return None
+
     def get_carte(self):
         return self._carte_tutte
+
+    def set_carte(self, ca):
+        self._carte_tutte =  ca
 
     def set_debug(self, dbg):
         self._debug = dbg
 
     def get_debug(self):
         return True
+
+    def get_autostart(self):
+        return False
 
     def get_verbose(self):
         return False
@@ -79,7 +91,7 @@ class Globals(object):
         return True
 
     def get_demo_mode(self):
-        return True
+        return False
 
     def controlla_ultima(self):
         return False

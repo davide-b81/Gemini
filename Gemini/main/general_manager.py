@@ -23,8 +23,6 @@ class GeneralManager(object):
     '''
     _giocatori = None
 
-    _mazzo_ini = None
-
     _mazzo = None
     _pozzo = None
     _fola = None
@@ -35,11 +33,15 @@ class GeneralManager(object):
     _set_ca_prese = {}
     _set_ca_rubate = {}
 
+    _curdeck = None
+
     _mazziere = None
     _player = None
 
     _delegate_restore_mazzo = None
     _delegate_get_sprite = None
+    _globals = Globals()
+
     '''
     CONSTRUCTOR
     '''
@@ -49,11 +51,9 @@ class GeneralManager(object):
             '''
             Constructor
             '''
-            self._mazzo_ini = mazzo_97.Deck97()
             self._mazziere = None
             self._giocatori = []
             self._player = None
-            self._carte_tutte = self._mazzo_ini.get_carte()
             self._mazzo = Mazzo("Mazzo")
             self._taglio = Mazzo("Taglio")
             self._fola = Mazzo("Fola")
@@ -71,6 +71,7 @@ class GeneralManager(object):
         try:
             self._player = None
             self._mazziere = None
+            self._mazzo.append_carte(self._globals.get_carte())
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -89,11 +90,8 @@ class GeneralManager(object):
 
     def get_mazziere(self):
         try:
-            if self._mazziere is None:
-                if Globals().get_force_mazziere():
-                    self._mazziere = self.get_player_at_pos(POSTAZIONE_SUD)
-                else:
-                    raise Exception("Nessun mazziere definito")
+            if Globals().get_force_mazziere():
+                self._mazziere = self.get_player_at_pos(POSTAZIONE_SUD)
             return self._mazziere
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -121,7 +119,7 @@ class GeneralManager(object):
     def set_cards_sprites(self):
         try:
             if self._delegate_get_sprite is not None:
-                for c in self._carte_tutte:
+                for c in self._globals.get_carte():
                     c.set_sprite(self._delegate_get_sprite(c.get_id()))
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -449,11 +447,12 @@ class GeneralManager(object):
     def mescola_mazzo(self):
         try:
             assert self._mazzo is not None
+            self._mazzo.append_carte(self._globals.get_carte())
             self._mazzo.mescola()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def cls_deck(self, d):
+    def svuota_mazzo(self, d):
         try:
             for col in d:
                 d[col].flush_carte()
@@ -462,20 +461,19 @@ class GeneralManager(object):
 
     def restore_decks(self):
         try:
-            assert self._carte_tutte is not None
+            assert self._globals.get_carte() is not None
             if self._delegate_restore_mazzo is not None:
                 self._delegate_restore_mazzo()
             self._mazzo.flush_carte()
             self._pozzo.flush_carte()
             self._fola.flush_carte()
             self._taglio.flush_carte()
-            self.cls_deck(self._set_ca_mano)
-            self.cls_deck(self._set_ca_scarti)
-            self.cls_deck(self._set_ca_prese)
-            self.cls_deck(self._set_ca_rubate)
+            self.svuota_mazzo(self._set_ca_mano)
+            self.svuota_mazzo(self._set_ca_scarti)
+            self.svuota_mazzo(self._set_ca_prese)
+            self.svuota_mazzo(self._set_ca_rubate)
             #for p in posizioni:
             #    self._set_ca_mano[p] = None
-            self._mazzo.append_carte(self._mazzo_ini.get_carte())
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -733,7 +731,7 @@ class GeneralManager(object):
 
     def cid_to_carta(self, cid):
         try:
-            for c in self._carte_tutte:
+            for c in self._globals.get_carte():
                 if str(c.get_id()) == str(cid):
                     return c
             return None
@@ -798,9 +796,26 @@ class GeneralManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def on_deserialize_complete(self):
+        try:
+            print(str(self._mazzo))
+            print(str(self._taglio))
+            print(str(self._fola))
+            print(str(self._pozzo))
+            print(str(self._set_ca_tavola))
+            print(str(self._set_ca_scarti))
+            print(str(self._set_ca_mano))
+            print(str(self._set_ca_prese))
+            print(str(self._set_ca_rubate))
+
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def reprJSON(self):
-        return dict(_mazziere=self._mazziere,
+        return dict(
+                    _id_gen_man=type(self).__name__,
                     _giocatori=self._giocatori,
+                    _mazziere=str(self._mazziere),
                     _player=self._player,
                     _mazzo=self._mazzo,
                     _taglio=self._taglio,
@@ -813,45 +828,131 @@ class GeneralManager(object):
                     _set_ca_rubate=self._set_ca_rubate
                )
 
-    @staticmethod
-    def fromJSON(json_object):
+    def fromJSON(self, json_object):
         try:
-            if '_id_carta' in  json_object.keys():
-                return Carta.fromJSON(json_object)
+            if '_id_fsm' in json_object.keys():
+                self._curdeck = self._mazzo
+            elif '_id_vers' in json_object.keys():
+                print(json_object['_id_vers'])
+            elif '_cardset' in json_object.keys():
+                print(json_object['_cardset'])
             elif '_id_deck' in json_object.keys():
-                return Mazzo.fromJSON(json_object)
-            elif '_mazziere' in  json_object.keys():
-                man = GeneralManager()
-                _giocatori = json_object['_giocatori']
-                man.set_giocatori(_players)
-                _obj = json_object['_mazzo']
-                man._mazzo = _obj
-                _obj = json_object['_taglio']
-                man._taglio = _obj
-                _fola = json_object['_fola']
-                man._fola = _obj
-                _obj = json_object['_pozzo']
-                man._pozzo = _obj
+                _id_deck = json_object['_id_deck']
+                if _id_deck == self._mazzo.get_id():
+                    self._curdeck = self._mazzo
+                    self._mazzo.fromJSON(json_object)
+                elif _id_deck == self._taglio.get_id():
+                    self._curdeck = self._taglio
+                    self._taglio.fromJSON(json_object)
+                    self._curdeck = self._fola
+                elif _id_deck == self._fola.get_id():
+                    self._curdeck = self._fola
+                    self._fola.fromJSON(json_object)
+                    self._curdeck = self._pozzo
+                elif _id_deck == self._pozzo.get_id():
+                    self._curdeck = self._pozzo
+                    self._pozzo.fromJSON(json_object)
+                    self._curdeck = self._set_ca_tavola[POSTAZIONE_NORD]
+                elif _id_deck == self._set_ca_tavola[POSTAZIONE_NORD].get_id():
+                    self._curdeck = self._set_ca_tavola[POSTAZIONE_NORD]
+                    self._set_ca_tavola[POSTAZIONE_NORD].fromJSON(json_object)
+                    self._curdeck = self._set_ca_tavola[POSTAZIONE_EST]
+                elif _id_deck == self._set_ca_tavola[POSTAZIONE_EST].get_id():
+                    self._curdeck = self._set_ca_tavola[POSTAZIONE_EST]
+                    self._set_ca_tavola[POSTAZIONE_EST].fromJSON(json_object)
+                    self._curdeck = self._set_ca_tavola[POSTAZIONE_SUD]
+                elif _id_deck == self._set_ca_tavola[POSTAZIONE_SUD].get_id():
+                    self._curdeck = self._set_ca_tavola[POSTAZIONE_SUD]
+                    self._set_ca_tavola[POSTAZIONE_SUD].fromJSON(json_object)
+                    self._curdeck = self._set_ca_tavola[POSTAZIONE_OVEST]
+                elif _id_deck == self._set_ca_tavola[POSTAZIONE_OVEST].get_id():
+                    self._curdeck = self._set_ca_tavola[POSTAZIONE_OVEST]
+                    self._set_ca_tavola[POSTAZIONE_OVEST].fromJSON(json_object)
+                    self._curdeck = self._set_ca_scarti[POSTAZIONE_NORD]
 
-                _player = json_object['_player']
+                elif _id_deck == self._set_ca_scarti[POSTAZIONE_NORD].get_id():
+                    self._curdeck = self._set_ca_scarti[POSTAZIONE_NORD]
+                    self._set_ca_scarti[POSTAZIONE_NORD].fromJSON(json_object)
+                    self._curdeck = self._set_ca_scarti[POSTAZIONE_EST]
+                elif _id_deck == self._set_ca_scarti[POSTAZIONE_EST].get_id():
+                    self._curdeck = self._set_ca_scarti[POSTAZIONE_EST]
+                    self._set_ca_scarti[POSTAZIONE_EST].fromJSON(json_object)
+                    self._curdeck = self._set_ca_scarti[POSTAZIONE_SUD]
+                elif _id_deck == self._set_ca_scarti[POSTAZIONE_SUD].get_id():
+                    self._curdeck = self._set_ca_scarti[POSTAZIONE_SUD]
+                    self._set_ca_scarti[POSTAZIONE_SUD].fromJSON(json_object)
+                    self._curdeck = self._set_ca_scarti[POSTAZIONE_OVEST]
+                elif _id_deck == self._set_ca_scarti[POSTAZIONE_OVEST].get_id():
+                    self._curdeck = self._set_ca_scarti[POSTAZIONE_OVEST]
+                    self._set_ca_scarti[POSTAZIONE_OVEST].fromJSON(json_object)
+
+                    self._curdeck = self._set_ca_mano[POSTAZIONE_NORD]
+                elif _id_deck == self._set_ca_mano[POSTAZIONE_NORD].get_id():
+                    self._curdeck = self._set_ca_mano[POSTAZIONE_NORD]
+                    self._set_ca_mano[POSTAZIONE_NORD].fromJSON(json_object)
+                    self._curdeck = self._set_ca_mano[POSTAZIONE_EST]
+                elif _id_deck == self._set_ca_mano[POSTAZIONE_EST].get_id():
+                    self._curdeck = self._set_ca_mano[POSTAZIONE_EST]
+                    self._set_ca_mano[POSTAZIONE_EST].fromJSON(json_object)
+                    self._curdeck = self._set_ca_mano[POSTAZIONE_SUD]
+                elif _id_deck == self._set_ca_mano[POSTAZIONE_SUD].get_id():
+                    self._curdeck = self._set_ca_mano[POSTAZIONE_SUD]
+                    self._set_ca_mano[POSTAZIONE_SUD].fromJSON(json_object)
+                    self._curdeck = self._set_ca_mano[POSTAZIONE_OVEST]
+                elif _id_deck == self._set_ca_mano[POSTAZIONE_OVEST].get_id():
+                    self._curdeck = self._set_ca_mano[POSTAZIONE_OVEST]
+                    self._set_ca_mano[POSTAZIONE_OVEST].fromJSON(json_object)
+
+                    self._curdeck = self._set_ca_prese[POSTAZIONE_NORD]
+                elif _id_deck == self._set_ca_prese[POSTAZIONE_NORD].get_id():
+                    self._curdeck = self._set_ca_prese[POSTAZIONE_NORD]
+                    self._set_ca_prese[POSTAZIONE_NORD].fromJSON(json_object)
+                    self._curdeck = self._set_ca_prese[POSTAZIONE_EST]
+                elif _id_deck == self._set_ca_prese[POSTAZIONE_EST].get_id():
+                    self._curdeck = self._set_ca_prese[POSTAZIONE_EST]
+                    self._set_ca_prese[POSTAZIONE_EST].fromJSON(json_object)
+                    self._curdeck = self._set_ca_prese[POSTAZIONE_SUD]
+                elif _id_deck == self._set_ca_prese[POSTAZIONE_SUD].get_id():
+                    self._curdeck = self._set_ca_prese[POSTAZIONE_SUD]
+                    self._set_ca_prese[POSTAZIONE_SUD].fromJSON(json_object)
+                    self._curdeck = self._set_ca_prese[POSTAZIONE_OVEST]
+                elif _id_deck == self._set_ca_prese[POSTAZIONE_OVEST].get_id():
+                    self._curdeck = self._set_ca_prese[POSTAZIONE_OVEST]
+                    self._set_ca_prese[POSTAZIONE_OVEST].fromJSON(json_object)
+
+                    self._curdeck = self._set_ca_rubate[POSTAZIONE_NORD]
+                elif _id_deck == self._set_ca_rubate[POSTAZIONE_NORD].get_id():
+                    self._curdeck = self._set_ca_rubate[POSTAZIONE_NORD]
+                    self._set_ca_rubate[POSTAZIONE_NORD].fromJSON(json_object)
+                    self._curdeck = self._set_ca_rubate[POSTAZIONE_EST]
+                elif _id_deck == self._set_ca_rubate[POSTAZIONE_EST].get_id():
+                    self._curdeck = self._set_ca_rubate[POSTAZIONE_EST]
+                    self._set_ca_rubate[POSTAZIONE_EST].fromJSON(json_object)
+                    self._curdeck = self._set_ca_rubate[POSTAZIONE_SUD]
+                elif _id_deck == self._set_ca_rubate[POSTAZIONE_SUD].get_id():
+                    self._curdeck = self._set_ca_rubate[POSTAZIONE_SUD]
+                    self._set_ca_rubate[POSTAZIONE_SUD].fromJSON(json_object)
+                    self._curdeck = self._set_ca_rubate[POSTAZIONE_OVEST]
+                elif _id_deck == self._set_ca_rubate[POSTAZIONE_OVEST].get_id():
+                    self._curdeck = self._set_ca_rubate[POSTAZIONE_OVEST]
+                    self._set_ca_rubate[POSTAZIONE_OVEST].fromJSON(json_object)
+                    self._curdeck = self._mazzo
+
+            elif '_id_carta' in json_object.keys():
+                self._curdeck.fromJSON(json_object)
+
+            elif '_id_player' in json_object.keys():
+                _player = json_object['_id_player']
+
+            elif '_giocatori' in json_object.keys():
+                #self.set_giocatori(_giocatori)
+                _list = json_object['_giocatori']
                 _mazziere = json_object['_mazziere']
-                for p in _giocatori:
-                    if str(p) == str(_mazziere):
-                        man.set_mazziere(p)
-                    if str(p) == str(_player):
-                        man.set_player(p)
-                _set_ca_tavola = json_object['_set_ca_tavola']
-                man._set_ca_tavola = _set_ca_tavola
-                _set_ca_scarti = json_object['_set_ca_scarti']
-                man._set_ca_scarti = _set_ca_scarti
-                _set_ca_mano = json_object['_set_ca_mano']
-                man._set_ca_mano = _set_ca_mano
-                _set_ca_prese = json_object['_set_ca_prese']
-                man._set_ca_prese = _set_ca_prese
-                _set_ca_rubate = json_object['_set_ca_rubate']
-                man._set_ca_rubate = _set_ca_rubate
-                man.set_cards_sprites()
-                return man
+                self.set_giocatori(_list)
+                m = json_object['_mazziere']
+                for p in self.get_giocatori():
+                    if str(p) == m:
+                        self.set_mazziere(p)
             else:
                 return json_object
         except Exception as e:

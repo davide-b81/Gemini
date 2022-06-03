@@ -222,3 +222,19 @@ class ActionFola(Action):
                         self._newsts = self.ACTSTATUS_END
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+
+    def reprJSON(self):
+        return self.__dict__()
+
+    def fromJSON(self, json_object):
+        try:
+            if '_id_action' in json_object.keys():
+                _id_action = json_object['_id_action']
+                _status = json_object['_status']
+                _newsts = json_object['_newsts']
+                a = ActionFola("")
+                return a
+            else:
+                return json_object
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)

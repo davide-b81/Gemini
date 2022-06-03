@@ -35,7 +35,7 @@ class Mazzo(object):
 
     def __str__(self):
         try:
-            s =  self.__name__()
+            s =  self.__name__() + " - " + str(len(self._list))
             for c in self._list:
                 s = s + "\n- " + str(c)
             return s
@@ -110,7 +110,7 @@ class Mazzo(object):
             if not isinstance(e, StopIteration):
                 ExceptionMan.manage_exception("", e, True)
             else:
-                raise
+                raise ExceptionMan.manage_exception("", e, True)
 
     def __len__(self):
         try:
@@ -327,21 +327,15 @@ class Mazzo(object):
     def reprJSON(self):
         return dict(_id_deck=self._id, _list=[ob for ob in self._list])
 
-    @staticmethod
-    def fromJSON(json_object):
+    def fromJSON(self, json_object):
         try:
-            if '_id_carta' in  json_object.keys():
+            if '_id_carta' in json_object.keys():
                 # Se è una sotto struttura uso il relativo tipo
-                return decks.carta.Carta.fromJSON(json_object)
+                c = decks.carta.Carta.fromJSON(json_object)
+                self._list.insert(-1, c)
             elif '_id_deck' in json_object.keys():
                 _id = json_object['_id_deck']
                 _list = json_object['_list']
-                mm = Mazzo(_id)
-                for c in _list:
-                    mm.insert(c)
-                return mm
-            else:
-                return json_object
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 

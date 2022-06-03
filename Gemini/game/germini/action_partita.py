@@ -11,7 +11,7 @@ from game.germini.punteggi import is_conto
 from game.germini.strategia import Strategia
 from main.exception_man import ExceptionMan
 from oggetti.posizioni import *
-from main.globals import echo_message, FRONTE_COPERTA
+from main.globals import echo_message, FRONTE_COPERTA, FRONTE_SCOPERTA
 
 
 class ActionPartita(Action):
@@ -41,9 +41,6 @@ class ActionPartita(Action):
     ACTSTATUS_CHECK_CADUTO_4 = "ACTSTATUS_CHECK_CADUTO_4"
 
     _winner = None
-    _scarto = None
-    _tagliato = None
-    _primo = {}
 
     def __init__(self, fsm):
         try:
@@ -74,10 +71,6 @@ class ActionPartita(Action):
             self._winner = None
             self._newsts = self.ACTSTATUS_PRIMA_CARTA_1
             self.reset_giro_singolo()
-            self._primo[POSTAZIONE_SUD] = False
-            self._primo[POSTAZIONE_NORD] = False
-            self._primo[POSTAZIONE_EST] = False
-            self._primo[POSTAZIONE_OVEST] = False
             self.set_primo()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -393,8 +386,7 @@ class ActionPartita(Action):
             for p in self._game_man.get_giocatori():
                 if self._fsm.simulated():
                     self._fsm.giocatore_scarta(p.get_position())
-                    self._fsm.show_deck_packed(DeckId.DECK_POZZO, p.get_position())
-            self._scarto = True
+                    self._fsm.show_deck_packed(DeckId.DECK_POZZO, FRONTE_SCOPERTA, p)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -481,7 +473,6 @@ class ActionPartita(Action):
     def reset_giro_singolo(self):
         try:
             self._fsm._cid_apertura = None
-            self._tagliato = False
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -491,5 +482,21 @@ class ActionPartita(Action):
             if not self._fsm.is_caduto(player) and self._fsm.cascare_enabled(player):
                 self.show_timed_popup("<p>Cade " + str(player) + " e scopre le sue carte</p>", 1)
                 self._fsm.on_cade(player)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def reprJSON(self):
+        return self.__dict__()
+
+    def fromJSON(self, json_object):
+        try:
+            if '_id_action' in json_object.keys():
+                _id_action = json_object['_id_action']
+                _status = json_object['_status']
+                _newsts = json_object['_newsts']
+                a = ActionPartita("")
+                return a
+            else:
+                return json_object
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)

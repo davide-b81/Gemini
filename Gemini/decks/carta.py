@@ -7,6 +7,7 @@ Created on 31 dic 2021
 #  Created on 25 1 2022
 #  @author: david
 #  '''
+import inspect
 import json
 from json import JSONEncoder, JSONDecoder
 
@@ -22,16 +23,16 @@ class Carta(object):
     _id = None
     _coperta = None
     _sprite = None
-    #_globals = None
+    _globals = None
 
     def __init__(self, id):
         '''
         Constructor
         '''
         try:
-            #self._globals = Globals()
             self._id = id
-            self._coperta = True
+            self._coperta = FRONTE_COPERTA
+            self._globals = Globals()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -43,9 +44,10 @@ class Carta(object):
 
     def set_coperta(self, coperta=FRONTE_COPERTA, inst=True):
         try:
+            assert coperta == FRONTE_COPERTA or coperta == FRONTE_SCOPERTA
             g = Globals()
-            if g.get_uncover(): #self._globals.get_uncover():
-                self._coperta = False
+            if g.get_uncover():
+                self._coperta = FRONTE_SCOPERTA
             else:
                 self._coperta = coperta
             if self._sprite is not None:
@@ -58,16 +60,56 @@ class Carta(object):
             pass
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+    @property
+    def z(self):
+        if self._sprite is not None:
+            return self._sprite.get_z()
+        else:
+            return 0
+
+    @z.setter
+    def z(self, i):
+        self._sprite.z = i
+
+    @property
+    def visible(self):
+        return self._sprite.visible
+
+    @visible.setter
+    def visible(self, v):
+        self._sprite.visible = v
 
     def set_z(self, z):
         try:
-            #if z == 0:
-            #    print("NULL z")
-            #else:
-            #    print(str(self) + " set z = " + str(z))
-            self._sprite.set_z(z)
+            self._sprite.z = z
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+
+    @property
+    def x(self):
+        if self._sprite is not None:
+            return self._sprite.get_position()[0]
+        else:
+            return 0
+
+    @x.setter
+    def x(self, coo):
+        self._sprite.x = coo
+
+    @property
+    def y(self):
+        if self._sprite is not None:
+            return self._sprite.get_position()[1]
+        else:
+            return 0
+
+    @y.setter
+    def y(self, coo):
+        self._sprite.y = coo
+
+    @property
+    def valore(self):
+        return self._id.get_numerale()
 
     def set_hoverable(self, enable=True):
         try:
@@ -106,7 +148,6 @@ class Carta(object):
 
     def set_visible(self, enable=True):
         try:
-            #print(str(self) + " set visible " + str(enable))
             self._sprite.set_visible(enable)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -149,7 +190,7 @@ class Carta(object):
         try:
             if (self.is_tarocco()):
                 if other.is_tarocco():
-                    return self.get_numerale() > other.get_numerale()
+                    return get_numerale(self._id) > get_numerale(other._id)
                 else:
                     return True
             else:
@@ -158,7 +199,7 @@ class Carta(object):
                 elif self.get_seme() != other.get_seme():
                     return True
                 else:
-                    return self.get_numerale() > other.get_numerale()
+                    return get_numerale(self._id) > get_numerale(other._id)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -195,16 +236,51 @@ class Carta(object):
     def __dict__(self):
         return dict(_id_carta=str(self._id), _coperta=str(self._coperta))
 
+    def __mod__(self, other):
+        try:
+            " Operator % False -> Carte con lo stesso valore"
+            if is_tarocco(self._id) or is_tarocco(other._id):
+                # Non ci sono tarocchi con lo stesso valore
+                if get_numerale(self._id) - get_numerale(other._id) != 0:
+                    return get_numerale(self._id) - get_numerale(other._id)
+                else:
+                    return 97
+            else:
+                return get_numerale(self._id) - get_numerale(other._id)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def reprJSON(self):
-        return self.__dict__()
+        #print("Serialize Carta " + str(self._id))
+        assert self._coperta == True or self._coperta == False
+        return dict(_id_carta=str(self._id), _coperta=self._coperta, _visible=self.visible, _z=self.z, _x=self.x, _y=self.y)
 
     @staticmethod
     def fromJSON(json_object):
         try:
             if '_id_carta' in json_object:
                 id = json_object['_id_carta']
-                c = Carta(CartaId[id])
+                c = Globals().get_carta(CartaId[id])
+                if '_coperta' in json_object:
+                    val = json_object['_coperta']
+                    if val:
+                        c.set_coperta(FRONTE_COPERTA)
+                    else:
+                        c.set_coperta(FRONTE_SCOPERTA)
+                if '_visible' in json_object:
+                    val = json_object['_visible']
+                    c.visible = val
+                if '_x' in json_object:
+                    val = json_object['_x']
+                    c.x = val
+                if '_y' in json_object:
+                    val = json_object['_y']
+                    c.y = val
+                if '_z' in json_object:
+                    val = json_object['_z']
+                    c.z = val
                 return c
+
             else:
                 return json_object
             return None

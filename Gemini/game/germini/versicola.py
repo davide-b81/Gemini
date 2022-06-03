@@ -25,14 +25,20 @@ class Versicola(object):
     _owned = None
     _versicole = None
     _matto = None
+    _pos = None
+
     _delegate_nuova = None
 
-    def __init__(self, id, ca_set):
-        self._cardset = ca_set
-        self._owned = []
-        self._id = id
-        self._versicole = []
-        self._matto = False
+    def __init__(self, id, ca_set, ppos):
+        try:
+            self._pos = ppos
+            self._cardset = ca_set
+            self._owned = []
+            self._id = id
+            self._versicole = []
+            self._matto = False
+        except Exception as e:
+            ExceptionMan.manage_exception("Error: ", e, True)
 
     def set_delegate_nuova(self, f):
         assert f is not None
@@ -41,7 +47,7 @@ class Versicola(object):
     def get_id(self):
         return self._id
 
-    def clear(self):
+    def restore(self):
         try:
             self._owned.clear()
             self._versicole.clear()
@@ -56,12 +62,6 @@ class Versicola(object):
         try:
             if cid in self._cardset and self._owned.count(cid) == 1:
                 self._owned.remove(cid)
-        except Exception as e:
-            ExceptionMan.manage_exception("Error: ", e, True)
-
-    def append_cid(self, cid):
-        try:
-            pass
         except Exception as e:
             ExceptionMan.manage_exception("Error: ", e, True)
 
@@ -91,7 +91,7 @@ class Versicola(object):
             v = []
 
             for cid in self._cardset:
-                if cid in self._owned:
+                if cid in self._owned and not cid in self._versicole:
                     if first is None:
                         first = cid
                         v.append(cid)
@@ -133,8 +133,9 @@ class Versicola(object):
 
             if len(v) > 2:
                 v.sort()
-                self._owned.append(v)
-                self.set_versicola_sub(v)
+                for c in v:
+                    self._owned.append(c)
+                    self.set_versicola_sub(c)
             v.clear()
 
         except Exception as e:
@@ -146,7 +147,7 @@ class Versicola(object):
         except Exception as e:
             ExceptionMan.manage_exception("Error: ", e, True)
 
-    def __name__(self):
+    def __str__(self):
         try:
             if self._id == VERSICOLA_RE_ID:
                 return _("Versicola di Re")
@@ -162,6 +163,8 @@ class Versicola(object):
                 return _("Versicola Demonio, Mondo, Carne")
             elif self._id == VERSICOLA_REGOLARE_ID:
                 return _("Versicola regolare")
+            else:
+                return "Versicola sconosciuta"
         except Exception as e:
             ExceptionMan.manage_exception("Error: ", e, True)
 
@@ -175,6 +178,37 @@ class Versicola(object):
         except Exception as e:
             ExceptionMan.manage_exception("Error: ", e, True)
 
-    def __str__(self):
-        return self.__name__()
+    def __name__(self):
+        return self._id
 
+    def __dict__(self):
+        return dict(_id_vers=self._id,
+                    _pposv=self._pos,
+                    _cardset=[ob for ob in self._cardset],
+                    _owned=[ob for ob in self._owned],
+                    _versicole=[ob for ob in self._versicole],
+                    _matto=self._matto
+                    )
+
+    @property
+    def pos(self):
+        return self._pos
+
+    def reprJSON(self):
+        return self.__dict__()
+
+    @staticmethod
+    def fromJSON(json_object):
+        try:
+            _id_vers = json_object['_id_vers']
+            _pposv = json_object['_pposv']
+            _cardset = json_object['_cardset']
+            _owned = json_object['_owned']
+            _versicole = json_object['_versicole']
+            _matto = json_object['_matto']
+            v = Versicola(_id_vers, _cardset, _pposv)
+            for c in _owned:
+                v.insert_cid(c)
+            return v
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)

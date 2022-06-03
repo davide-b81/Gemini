@@ -18,21 +18,23 @@ class FsmGioco(metaclass=ABCMeta):
     '''
     classdocs
     '''
-    handlers = None
-    _actions = None
-    _act_giro = None
-    startState = None
-    _running = None
+    _id_fsm = None
     _status = None
     _sub_status = None
     _status_next = None
     _sub_status_next = None
     _status_prev = None
+    _cid_apertura = None
+    _winner = None
+    _globals = Globals()
+
+    handlers = None
+    _actions = None
+    _act_giro = None
+    startState = None
     _t_status = None
     _game_man = None
-    _winner = None
     _t_sub_status = None
-    _cid_apertura = None
 
     _delegate_append_html_text = None
     _delegate_show_popup = None
@@ -53,15 +55,17 @@ class FsmGioco(metaclass=ABCMeta):
     STATUS_MODAL_POPUP = "STATUS_MODAL_POPUP"
     STATUS_RESUME = "STATUS_RESUME"
 
-    def __init__(self, gamman=None, genman=None):
+
+    def __init__(self, gamman=None):
         '''
         Constructor
         '''
+        self.running = False
+        self._id_fsm = str(self)
         self._globals = Globals()
         self.handlers = {}
         self._actions = {}
         self._act_giro = ActionGiro(self)
-        self._running = False
         self._t_status = monotonic()
         self._t_sub_status = monotonic()
         self._game_man = gamman
@@ -75,6 +79,9 @@ class FsmGioco(metaclass=ABCMeta):
         self._status_post = self._status
         self._winner = None
         self._status_prev = self.STATUS_INIZIO
+
+    def __str__(self):
+        return type(self).__name__
 
     def set_delegate_presa(self, f):
         self._delegate_presa = f
@@ -119,15 +126,12 @@ class FsmGioco(metaclass=ABCMeta):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def is_running(self):
-        return self._running
-
     def start_game(self):
         check_locals(locals())
         try:
             self._t_status = monotonic()
             self._t_sub_status = monotonic()
-            self._running = True
+            self.running = True
             self._act_giro.start()
             self._status = self.STATUS_INIZIO
             self._status_next = self._status
@@ -136,7 +140,7 @@ class FsmGioco(metaclass=ABCMeta):
             ExceptionMan.manage_exception("", e, True)
 
     def end_game(self):
-        self._running = False
+        self.running = False
 
     def man_end(self):
         pass
@@ -174,13 +178,6 @@ class FsmGioco(metaclass=ABCMeta):
                 else:
                     self.dai_al_giocatore(self._game_man.get_player(), n, FRONTE_COPERTA)
                 self.update_next_player()
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
-    def update_mazziere(self, player):
-        try:
-            self._game_man.set_mazziere(player)
-            self._delegate_update_mazziere(player.get_position())
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -224,9 +221,6 @@ class FsmGioco(metaclass=ABCMeta):
 
     def get_finished(self):
         return self._status == FsmGioco.STATUS_FINE
-
-    def get_action_status(self):
-        return self._actions[self._status].get_status()
 
     def calata(self, c, player=None):
         try:
@@ -304,6 +298,24 @@ class FsmGioco(metaclass=ABCMeta):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def get_action_status(self):
+        try:
+            if self._status in self._actions:
+                return self._actions[self._status].get_status()
+            elif self._status == self.STATUS_GIRO:
+                return self._act_giro.get_status()
+            return None
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_action_new_status(self):
+        try:
+            if self._status in self._actions:
+                return self._actions[self._status].get_new_status()
+            return None
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def update_game(self):
         try:
             if self._game_man.get_draw_stable():
@@ -324,7 +336,7 @@ class FsmGioco(metaclass=ABCMeta):
                         self._status_next = self.STATUS_MESCOLA
                         self._status_post = self.STATUS_MESCOLA
                         self._actions[self._status].start_partita()
-                elif self._running:
+                elif self.running:
                     handler = self.handlers[self._status]
 
                     if handler != None:
@@ -418,6 +430,10 @@ class FsmGioco(metaclass=ABCMeta):
     def get_carte_mano(self, player):
         return self._game_man.get_carte_mano(player)
 
+    @property
+    def posizioni(self):
+        return self._game_man.get_posizioni()
+
     def set_lato_mazzo(self, deck, coperta):
         try:
             for c in self.get_list_ca(deck):
@@ -509,6 +525,12 @@ class FsmGioco(metaclass=ABCMeta):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def get_deck_merged(self, deck=DeckId.DECK_MAZZO):
+        try:
+            return self._game_man.get_deck_merged(deck)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def get_deck_len(self, deck=DeckId.DECK_MANO, player=None):
         try:
             if player is None:
@@ -547,6 +569,16 @@ class FsmGioco(metaclass=ABCMeta):
 
     def get_mazziere(self):
         return self._game_man.get_mazziere()
+
+    def set_mazziere(self, player):
+        self._game_man.set_mazziere(player)
+
+    def update_mazziere(self, player):
+        try:
+            self.set_mazziere(player)
+            self._delegate_update_mazziere(player.get_position())
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
     def mostra_mazzo(self, deck=DeckId.DECK_MAZZO, ppos=None, n=None):
         return self._game_man.show_deck_packed(deck, ppos, n)
@@ -594,11 +626,9 @@ class FsmGioco(metaclass=ABCMeta):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def set_postazioni(self, ppos):
-        self._game_man.set_postazioni(ppos)
-
+    @abstractmethod
     def get_postazioni(self):
-        return self._game_man.get_postazioni()
+        pass
 
     def mescola_mazzo(self):
         return self._game_man.mescola_mazzo()
@@ -626,6 +656,7 @@ class FsmGioco(metaclass=ABCMeta):
 
     def show_deck_packed(self, deck=DeckId.DECK_MAZZO, fronte=FRONTE_SCOPERTA, player=None):
         try:
+            assert fronte==FRONTE_SCOPERTA or fronte==FRONTE_COPERTA
             if player is None:
                 player = self.get_player()
             self._game_man.show_deck_packed(deck, player.get_position(), fronte)
@@ -678,5 +709,54 @@ class FsmGioco(metaclass=ABCMeta):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
+    def __dict__(self):
+        try:
+            return dict(
+                _status=self._status,
+                _sub_status=self._sub_status,
+                _status_next=self._status_next,
+                _sub_status_next=self._sub_status_next,
+                _status_prev=self._status_prev,
+                _cid_apertura=self._cid_apertura,
+                _winner=self._winner)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def reprJSON(self):
-        return "QQQQQQ"
+        try:
+            return dict(
+                _id_fsm=self.__class__.__name__,
+                _status=self._status,
+                _action_status=self.get_action_status(),
+                _action_new_status=self.get_action_new_status(),
+                _sub_status=self._sub_status,
+                _status_next=self._status_next,
+                _sub_status_next=self._sub_status_next,
+                _status_prev=self._status_prev,
+                _cid_apertura=self._cid_apertura,
+                _mazziere=str(self.get_mazziere()),
+                _winner=self._winner)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def fromJSON(self, json_object):
+        try:
+            if '_id_fsm' in json_object.keys():
+                print("De-Serialize Fsm")
+                self._status = json_object['_status']
+                self._sub_status = json_object['_sub_status']
+                self._status_next = json_object['_status_next']
+                self._sub_status_next = json_object['_sub_status_next']
+                self._status_prev = json_object['_status_prev']
+                self._cid_apertura = json_object['_cid_apertura']
+                self._winner = json_object['_winner']
+                if self._status is self._actions:
+                    self._actions[self._status].set_status(json_object['_action_status'])
+                    self._actions[self._status].set_new_status(json_object['_action_new_status'])
+                elif self._status == self.STATUS_GIRO:
+                    self._act_giro.set_status(json_object['_action_status'])
+                    self._act_giro.set_new_status(json_object['_action_new_status'])
+            else:
+                return json_object
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)

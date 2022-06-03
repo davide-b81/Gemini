@@ -62,9 +62,11 @@ class GiocoManager(object):
         try:
             self._globals = Globals()
             self._pos_man = pos_man
+            self._fsmger = FsmGermini(self)
             self._gen_manager = GeneralManager()
+            self.set_postazioni(self._fsmger.get_postazioni())
+
             self._gen_manager.set_delegate_restore_mazzo(self.restore_mazzo)
-            self._fsmger = FsmGermini(self, self._gen_manager)
             self._fsmger.set_delegate_append_html_text(self.on_append_text_box)
             self._fsmger.set_delegate_show_popup(self.on_show_popup)
             self._fsmger.set_delegate_presa(self.on_presa)
@@ -79,7 +81,6 @@ class GiocoManager(object):
             ExceptionMan.manage_exception("", e, True)
 
     ''' Initialize delegates '''
-
     def set_delegate_get_sprite(self, f):
         try:
             self._delegate_get_sprite = f
@@ -352,12 +353,6 @@ class GiocoManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def dump_gioco(self, file):
-        try:
-            json.dump(self.reprJSON(), file, cls=ComplexEncoder, indent=4)
-        except Exception as e:
-            ExceptionMan.manage_exception("", e, True)
-
     def set_gioco(self, gioco):
         try:
             if self._fsmc.__class__.__name__ == gioco:
@@ -417,7 +412,6 @@ class GiocoManager(object):
             self._game.winner = None
             self.set_giocatori(giocatori)
             self.set_postazioni(self._game.get_postazioni())
-            self._gen_manager.start()
             self._gen_manager.mescola_mazzo()
             self._game.start_game()
         except Exception as e:
@@ -497,7 +491,7 @@ class GiocoManager(object):
     def is_running(self):
         try:
             if self._game is not None:
-                return self._game.is_running()
+                return self._game.running
             else:
                 return False
         except Exception as e:
@@ -1164,16 +1158,78 @@ class GiocoManager(object):
 
     def __dict__(self):
         return dict(
-            _game=str(self._game),
-            #_fsmc,
-            #_fsmger,
+            _game=self._game,
             _gen_manager=self._gen_manager,
             #_pos_man = self._pos_man,
-            #_pos_man = self._draw_stable,
             _posizioni=self._posizioni)
 
+    def on_serialize(self):
+        try:
+            return json.dumps(self.reprJSON(), cls=ComplexEncoder, indent=4)
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def on_deserialize_complete(self):
+        try:
+            self._gen_manager.on_deserialize_complete()
+
+            if self._game is not None:
+                self._game.running = True
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
     def reprJSON(self):
-        return self.__dict__()
+        #print("Serialize " + type(self).__name__)
+        return dict(
+            _id_gam_man=type(self).__name__,
+            _id_game=str(self._game),
+            _game=self._game,
+            _gen_manager=self._gen_manager,
+            #_pos_man = self._pos_man,
+            _posizioni=self._posizioni)
+
+    def fromJSON(self, json_object):
+        """ Il metodo non è statico in modo da non dover re-istanziare la classe """
+        try:
+            if '_id_gam_man' in json_object.keys():
+                _posizioni = json_object['_posizioni']
+            elif '_id_game' in json_object.keys():
+                if json_object['_id_game'] == str(self._fsmger):
+                    self._game = self._fsmger
+                #man.set_cards_sprites()
+            elif '_id_deck' in json_object.keys():
+                self._gen_manager.fromJSON(json_object)
+            elif '_id_carta' in json_object.keys():
+                self._gen_manager.fromJSON(json_object)
+            elif '_id_fsm' in json_object.keys():
+                self._gen_manager.fromJSON(json_object)
+                if json_object['_id_fsm'] == str(self._fsmger):
+                    self._game = self._fsmger
+                self._game.fromJSON(json_object)
+
+                _versicole_nord = json_object['_versicole_nord']
+                self._fsmger.fromJSON(_versicole_nord)
+
+            elif '_id_gen_man' in json_object.keys():
+                self._gen_manager.fromJSON(json_object)
+            elif '_giocatori' in json_object.keys():
+                self._gen_manager.fromJSON(json_object)
+            elif '_id_player' in json_object.keys():
+                _id_player = json_object['_id_player']
+                _pos = json_object['_position']
+                p = Player(_id_player, _pos)
+                p.set_punti_partite(json_object['_punti_partite'])
+                p.set_punti_mano(json_object['_punti_mano'])
+                p.set_caduto(json_object['_caduto'])
+                p.set_simulated(json_object['_simulated'])
+                return p
+            elif '_listv' in json_object.keys():
+                return self._fsmger.fromJSON(json_object)
+            elif "_id_vers" in json_object.keys():
+                return self._fsmger.fromJSON(json_object)
+            return None
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
 if __name__ == '__main__':
     man = GiocoManager(Globals().get_positions())

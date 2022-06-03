@@ -24,6 +24,7 @@ class ActionGiro(Action):
     ACTSTATUS_PESCA_2 = "ACTSTATUS_PESCA_2"
     ACTSTATUS_PESCA_3 = "ACTSTATUS_PESCA_3"
     ACTSTATUS_PESCA_4 = "ACTSTATUS_PESCA_4"
+    ACTSTATUS_VALIDA = "ACTSTATUS_VALIDA"
     ACTSTATUS_NOTIFICA = "ACTSTATUS_NOTIFICA"
     ACTSTATUS_PARTITA_1 = "ACTSTATUS_PARTITA_1"
     ACTSTATUS_PARTITA_2 = "ACTSTATUS_PARTITA_2"
@@ -31,7 +32,6 @@ class ActionGiro(Action):
     ACTSTATUS_RISULTATI = "ACTSTATUS_RISULTATI"
 
     _n = None
-    _c = None
     _d = None
     _sorteggio = None
 
@@ -40,12 +40,7 @@ class ActionGiro(Action):
             super().__init__(fsm)
             self._sorteggio = []
             self._n = 0
-            self._c = {}
             self._d = []
-            self._c[POSTAZIONE_NORD] = None
-            self._c[POSTAZIONE_OVEST] = None
-            self._c[POSTAZIONE_SUD] = None
-            self._c[POSTAZIONE_EST] = None
             self._t_action = monotonic()
             self._newsts = None
         except Exception as e:
@@ -54,19 +49,78 @@ class ActionGiro(Action):
     def update_sub(self):
         """
         (). Prima di iniziare ogni giocatore pesca una carta dal mazzo.
+        (). Se due o più giocatori estraggono carte con lo stesso valore questi le estraggono di nuovo; anche il matto
+        non è considerato un'estrazione valida.
         """
         try:
             if self._status == self.ACTSTATUS_PESCA_1:
-                if self.giocatore_pesca(self._fsm.get_giocatori()[0], POSTAZIONE_SUD):
-                    self._newsts = self.ACTSTATUS_PESCA_2
+                d = self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_SUD)
+                if len(d) == 0:
+                    self.giocatore_pesca(self.get_disposizione_iniziale(POSTAZIONE_SUD), POSTAZIONE_SUD)
+                self._newsts = self.ACTSTATUS_PESCA_2
             elif self._status == self.ACTSTATUS_PESCA_2:
-                if self.giocatore_pesca(self._fsm.get_giocatori()[1], POSTAZIONE_EST):
-                    self._newsts = self.ACTSTATUS_PESCA_3
+                d = self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_EST)
+                if len(d) == 0:
+                    self.giocatore_pesca(self.get_disposizione_iniziale(POSTAZIONE_EST), POSTAZIONE_EST)
+                self._newsts = self.ACTSTATUS_PESCA_3
+
             elif self._status == self.ACTSTATUS_PESCA_3:
-                if self.giocatore_pesca(self._fsm.get_giocatori()[2], POSTAZIONE_NORD):
-                    self._newsts = self.ACTSTATUS_PESCA_4
+                d = self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_NORD)
+                if len(d) == 0:
+                    self.giocatore_pesca(self.get_disposizione_iniziale(POSTAZIONE_NORD), POSTAZIONE_NORD)
+                self._newsts = self.ACTSTATUS_PESCA_4
+
             elif self._status == self.ACTSTATUS_PESCA_4:
-                if self.giocatore_pesca(self._fsm.get_giocatori()[3], POSTAZIONE_OVEST):
+                d = self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_OVEST)
+                if len(d) == 0:
+                    self.giocatore_pesca(self.get_disposizione_iniziale(POSTAZIONE_OVEST), POSTAZIONE_OVEST)
+                self._newsts = self.ACTSTATUS_VALIDA
+
+            elif self._status == self.ACTSTATUS_VALIDA:
+                for pos in self._fsm.posizioni:
+                    d = self._fsm.get_deck(DeckId.DECK_TAVOLA, pos)
+                    if len(d) > 0 and d[0].get_id() == CartaId.MATTO_0:
+                        d.remove(d[0])
+                        self._status = self.ACTSTATUS_PESCA_1
+                        break
+
+                if self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_SUD).get_carta(-1) %\
+                        self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_EST).get_carta(-1) == 0:
+                    self._fsm.clear_carte_in_tavola(POSTAZIONE_SUD)
+                    self._fsm.clear_carte_in_tavola(POSTAZIONE_EST)
+                    self.show_timed_popup(str(self._fsm.get_giocatori()[0]) +  " e " + str(self._fsm.get_giocatori()[1]) + " ripescano.")
+                    self._newsts = self.ACTSTATUS_PESCA_1
+                elif self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_SUD).get_carta(-1) %\
+                        self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_NORD).get_carta(-1) == 0:
+                    self._fsm.clear_carte_in_tavola(POSTAZIONE_SUD)
+                    self._fsm.clear_carte_in_tavola(POSTAZIONE_NORD)
+                    self.show_timed_popup(str(self._fsm.get_giocatori()[0]) +  " e " + str(self._fsm.get_giocatori()[2]) + " ripescano.")
+                    self._newsts = self.ACTSTATUS_PESCA_1
+                elif self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_SUD).get_carta(-1) %\
+                        self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_OVEST).get_carta(-1) == 0:
+                    self._fsm.clear_carte_in_tavola(POSTAZIONE_SUD)
+                    self._fsm.clear_carte_in_tavola(POSTAZIONE_OVEST)
+                    self.show_timed_popup(str(self._fsm.get_giocatori()[0]) + " e " + str(self._fsm.get_giocatori()[3]) + " ripescano.")
+                    self._newsts = self.ACTSTATUS_PESCA_1
+                elif self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_EST).get_carta(-1) %\
+                        self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_OVEST).get_carta(-1) == 0:
+                    self._fsm.clear_carte_in_tavola(POSTAZIONE_EST)
+                    self._fsm.clear_carte_in_tavola(POSTAZIONE_OVEST)
+                    self.show_timed_popup(str(self._fsm.get_giocatori()[1]) + " e " + str(self._fsm.get_giocatori()[3]) + " ripescano.")
+                    self._newsts = self.ACTSTATUS_PESCA_1
+                elif self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_NORD).get_carta(-1) %\
+                        self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_OVEST).get_carta(-1) == 0:
+                    self._fsm.clear_carte_in_tavola(POSTAZIONE_NORD)
+                    self._fsm.clear_carte_in_tavola(POSTAZIONE_OVEST)
+                    self.show_timed_popup(str(self._fsm.get_giocatori()[2]) + " e " + str(self._fsm.get_giocatori()[3]) + " ripescano.")
+                    self._newsts = self.ACTSTATUS_PESCA_1
+                elif self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_NORD).get_carta(-1) %\
+                        self._fsm.get_deck(DeckId.DECK_TAVOLA, POSTAZIONE_EST).get_carta(-1) == 0:
+                    self._fsm.clear_carte_in_tavola(POSTAZIONE_NORD)
+                    self._fsm.clear_carte_in_tavola(POSTAZIONE_EST)
+                    self.show_timed_popup(str(self._fsm.get_giocatori()[2]) + " e " + str(self._fsm.get_giocatori()[1]) + " ripescano.")
+                    self._newsts = self.ACTSTATUS_PESCA_1
+                else:
                     self._newsts = self.ACTSTATUS_NOTIFICA
             elif self._status == self.ACTSTATUS_NOTIFICA:
                 if self._globals.get_force_mazziere():
@@ -76,11 +130,7 @@ class ActionGiro(Action):
                     self._sorteggio.append((POSTAZIONE_NORD, ppl[2]))
                     self._sorteggio.append((POSTAZIONE_OVEST, ppl[3]))
                 else:
-                    if self.ripesca():
-                        self.show_timed_popup("Ripesca")
-                    else:
-                        self.ordina()
-                if not self.ripesca():
+                    self.ordina()
                     txt = "<p>Classifica:</p>"
                     txt += "<p>1. " + str(self._sorteggio[0][1]) + " - " + str(self._sorteggio[0][0]) + "</p>"
                     txt += "<p>2. " + str(self._sorteggio[1][1]) + " - " + str(self._sorteggio[1][0]) + "</p>"
@@ -105,28 +155,21 @@ class ActionGiro(Action):
             if ppos is None:
                 ppos = player.get_position()
             c = self._fsm.pesca_dal_mazzo(DeckId.DECK_MAZZO)
-            self._c[ppos] = c
-            self._d.append((c, player))
             self._fsm.inserisci_nel_mazzo(c, DeckId.DECK_TAVOLA, FRONTE_SCOPERTA, ppos)
-            if c.get_id() == CartaId.MATTO_0:
-                echo_message(str(player) + " ha pescato " + str(self._c[ppos]) + ". Pesca di nuovo.")
-                return False
-            else:
-                echo_message(str(player) + " ha pescato " + str(self._c[ppos]))
-                return True
+            return c
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def ripesca(self):
+    def get_disposizione_iniziale(self, pos):
         try:
-            res = []
-            for key, value in self._c.items():
-                if value is not None:
-                    if is_tarocco(value.get_id()):
-                        if len (res) == 0:
-                            res.append((key, value))
-                        else:
-                            pass
+            if pos == POSTAZIONE_SUD:
+                return self._fsm.get_giocatori()[0]
+            elif pos == POSTAZIONE_EST:
+                return self._fsm.get_giocatori()[1]
+            elif pos == POSTAZIONE_NORD:
+                return self._fsm.get_giocatori()[2]
+            elif pos == POSTAZIONE_OVEST:
+                return self._fsm.get_giocatori()[3]
             return False
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -134,24 +177,29 @@ class ActionGiro(Action):
     def ordina(self):
         try:
             self._sorteggio.clear()
-            for cpl in self._d:
-                    if len(self._sorteggio) == 0:
-                        self._sorteggio.append(cpl)
-                    else:
-                        for i in range(0, len(self._sorteggio)):
-                            if is_tarocco(cpl[0].get_id()) and not is_tarocco(self._sorteggio[i][0].get_id()):
-                                self._sorteggio.insert(i, cpl)
-                                break
-                            elif is_tarocco(cpl[0].get_id()) and is_tarocco(self._sorteggio[i][0].get_id()) and\
-                                    self._sorteggio[i][0].get_numerale() < cpl[0].get_numerale():
-                                self._sorteggio.insert(i, cpl)
-                                break
-                            elif self._sorteggio[i][0].get_numerale() < cpl[0].get_numerale():
-                                self._sorteggio.insert(i, cpl)
-                                break
-                            elif i + 1 >= len(self._sorteggio):
-                                self._sorteggio.append(cpl)
-                                break
+            for p in self._fsm.posizioni:
+                d = self._fsm.get_deck(DeckId.DECK_TAVOLA, p)
+                player = self.get_disposizione_iniziale(p)
+
+                assert len(d) > 0
+                cpl = (d[-1], player)
+                if len(self._sorteggio) == 0:
+                    self._sorteggio.append(cpl)
+                else:
+                    for i in range(0, len(self._sorteggio)):
+                        if is_tarocco(cpl[0].get_id()) and not is_tarocco(self._sorteggio[i][0].get_id()):
+                            self._sorteggio.insert(i, cpl)
+                            break
+                        elif is_tarocco(cpl[0].get_id()) and is_tarocco(self._sorteggio[i][0].get_id()) and\
+                                self._sorteggio[i][0].get_numerale() < cpl[0].get_numerale():
+                            self._sorteggio.insert(i, cpl)
+                            break
+                        elif self._sorteggio[i][0].get_numerale() < cpl[0].get_numerale():
+                            self._sorteggio.insert(i, cpl)
+                            break
+                        elif i + 1 >= len(self._sorteggio):
+                            self._sorteggio.append(cpl)
+                            break
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -225,7 +273,6 @@ class ActionGiro(Action):
         try:
             self._sorteggio.clear()
             self._d.clear()
-
             if not self._globals.get_force_mazziere():
                 self._status = self.ACTSTATUS_PESCA_1
                 self._newsts = self.ACTSTATUS_PESCA_1
@@ -244,3 +291,19 @@ class ActionGiro(Action):
     def get_status(self):
         return self._status
 
+    def reprJSON(self):
+        return self.__dict__()
+
+    @staticmethod
+    def fromJSON(self, json_object):
+        try:
+            if '_id_action' in json_object.keys():
+                _id_action = json_object['_id_action']
+                _status = json_object['_status']
+                _newsts = json_object['_newsts']
+                a = ActionGiro("")
+                return a
+            else:
+                return json_object
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)

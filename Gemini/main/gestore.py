@@ -206,7 +206,7 @@ class Gestore(object):
                 if evt.key == pygame.K_r:
                     self.on_r(evt)
             if evt.type == pygame.MOUSEMOTION:
-                if self._globals.get_debug():
+                if self._globals.get_autostart():
                     if self._gioco_man.is_running() == False:
                         self.on_nuovo("FsmGermini")
             if self.get_draw_stable():
@@ -242,6 +242,7 @@ class Gestore(object):
                 #self._ui_manager.draw_ui(self.screen)
                 self._draw_stable = self._gioco_frame.get_stable()
         except Exception as e:
+            self.on_save("error.json")
             ExceptionMan.manage_exception("", e, True)
 
     def on_update_ui(self):
@@ -289,8 +290,8 @@ class Gestore(object):
 
     def on_termina(self):
         try:
-            self._players.clear()
             self._gioco_frame.on_termina()
+            self._players.clear()
             self._running = False
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -329,6 +330,10 @@ class Gestore(object):
                 elif evt.ui_element == self._button_save:
                     self.on_save()
                 elif evt.ui_element == self._button_restore:
+                    self._button_termina.disable()
+                    self._button_termina.visible = False
+                    self._button_new.enable()
+                    self._button_new.visible = True
                     self.on_termina()
                     self.on_restore()
                     self.on_load()
@@ -341,16 +346,18 @@ class Gestore(object):
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
-    def on_save(self):
+    def on_save(self, name="dump.json"):
         try:
-            with open("test.json", "w", encoding="utf8") as outfile:
-                self._gioco_frame.dump_gioco(outfile)
+            with open(name, "w", encoding="utf8") as outfile:
+                self._gioco_frame.on_serialize(outfile)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def on_load(self):
         try:
-            pass
+            with open("dump.json", "r", encoding="utf8") as infile:
+                self._gioco_frame.on_deserialize(infile)
+                self._running = self._gioco_man.is_running()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 

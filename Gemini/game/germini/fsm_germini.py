@@ -5,6 +5,9 @@ Created on 7 gen 2022
 '''#
 from time import monotonic
 from importlib.resources import _
+
+from decks import mazzo_97
+from game.player import Player
 from main.globals import *
 from main.exception_man import ExceptionMan
 from game.germini.strategia import Strategia
@@ -19,8 +22,6 @@ from game.germini.action_taglia import ActionTaglia
 from game.germini.versicole_manager import VersicoleManager
 from game.fsm_gioco import FsmGioco
 
-#from oggetti.posizioni import *
-#from oggetti.stringhe import _
 from decks.carta_id import *
 from game.germini.punteggi import carte_conto, carte_sopraventi
 
@@ -46,6 +47,7 @@ class FsmGermini(FsmGioco):
     '''
     classdocs
     '''
+
     _strategia = None
     _versicole = {}
     STATUS_PUNTEGGI = "STATUS_PUNTEGGI"
@@ -55,12 +57,14 @@ class FsmGermini(FsmGioco):
     STATUS_PARTITA = "STATUS_PARTITA"
     STATUS_PRESA = "STATUS_PRESA"
 
-    def __init__(self, gamman=None, genman=None):
+    def __init__(self, gamman=None):
         try:
             '''
             Constructor
             '''
-            super().__init__(gamman, genman)
+            super().__init__(gamman)
+
+            self._globals.set_carte(mazzo_97.Deck97().get_carte())
 
             # Actions
             self.add_action(self.STATUS_MESCOLA, ActionMescola(self))
@@ -77,12 +81,11 @@ class FsmGermini(FsmGioco):
             self.add_state(self.STATUS_FOLA, self.fola)
             self.add_state(self.STATUS_PARTITA, self.partita)
             self.add_state(self.STATUS_PUNTEGGI, self.punteggio)
-            self.set_postazioni([POSTAZIONE_NORD, POSTAZIONE_EST, POSTAZIONE_SUD, POSTAZIONE_OVEST])
             self._t_sub_status = monotonic()
 
             self._strategia = Strategia(self, self._game_man)
-            for ppos in self._game_man.get_postazioni():
-                self._versicole[ppos] = VersicoleManager()
+            for ppos in self.get_postazioni():
+                self._versicole[ppos] = VersicoleManager(ppos)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -91,6 +94,9 @@ class FsmGermini(FsmGioco):
             super().update_game()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+
+    def get_postazioni(self):
+        return [POSTAZIONE_NORD, POSTAZIONE_EST, POSTAZIONE_SUD, POSTAZIONE_OVEST]
 
     def start_game(self):
         try:
@@ -156,7 +162,7 @@ class FsmGermini(FsmGioco):
             rubate = self.get_list_ca(DeckId.DECK_RUBATE, player.get_position())
             if self.player_has_carta(player, c):
                 self.giocatore_scarta_carta(c, player)
-                self.sposta_e_stendi(rubate[0], DeckId.DECK_RUBATE, DeckId.DECK_MANO, None, player)
+                self.sposta_e_stendi(rubate[0], DeckId.DECK_RUBATE, DeckId.DECK_MANO, FRONTE_COPERTA, player)
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -552,8 +558,11 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
         try:
             if player is None:
                 player = self._game_man.get_player()
-
-            self._versicole[player.get_position()].reset()
+            assert player is not None
+            assert player.get_position() is not None
+            assert player.get_position() in self._versicole
+            assert self._versicole[player.get_position()] is not None
+            self._versicole[player.get_position()].restore()
             ca = self.get_carte_mano(player)
             self._versicole[player.get_position()].riempi(ca)
             ca = self.get_carte_rubate(player)
@@ -738,10 +747,67 @@ viene segnata solo la differenza. Se, per esempio, la coppia A ha segnato 15 pun
             ExceptionMan.manage_exception("", e, True)
 
     def reprJSON(self):
-        return "PPPP"
+        ret = super().reprJSON()
+        ret['_versicole_nord'] = self._versicole[POSTAZIONE_NORD]
+        ret['_versicole_sud'] = self._versicole[POSTAZIONE_SUD]
+        ret['_versicole_est'] = self._versicole[POSTAZIONE_EST]
+        ret['_versicole_ovest'] = self._versicole[POSTAZIONE_OVEST]
+        return ret
+
+    def fromJSON(self, json_object):
+        try:
+            if json_object is None:
+                return "None"
+            #if '_versicole_nord' in json_object.keys():
+            #    self._versicole[POSTAZIONE_NORD].fromJSON(json_object['_versicole_nord'])
+            #elif '_versicole_sud' in json_object.keys():
+            #    print("PIPPO2")
+            #    return json_object
+            #elif '_versicole_est' in json_object.keys():
+            #    print("PIPPO3")
+            #    return json_object
+            #elif '_versicole_ovest' in json_object.keys():
+            #    print("PIPPO4")
+            #    return json_object
+            elif '_id_fsm' in json_object.keys():
+                self._versicole[POSTAZIONE_NORD].fromJSON(json_object['_versicole_nord'])
+                self._versicole[POSTAZIONE_SUD].fromJSON(json_object['_versicole_sud'])
+                self._versicole[POSTAZIONE_EST].fromJSON(json_object['_versicole_est'])
+                self._versicole[POSTAZIONE_OVEST].fromJSON(json_object['_versicole_ovest'])
+                super().fromJSON(json_object)
+            elif '_id_vers' in json_object.keys():
+                v = VersicoleManager.fromJSON(json_object)
+                assert v.pos in self._versicole
+                self._versicole[v.pos].deserVers(v)
+                #_idv = json_object['_id_vers']
+                #_cs = json_object['_cardset']
+                #_ver = json_object['_versicole']
+                #_ma = json_object['_matto']
+
+                #for ppos in self._versicole:
+                #    for v in self._versicole[ppos]:
+                #        if v.__name__() == _idv:
+                #            for e in _cs:
+                #                v.insert_cid(e)
+                #            break
+                #    self._versicole[ppos].evaluate_versicole()
+
+            elif 'VERSICOLE' in json_object.keys():
+                _id = json_object['VERSICOLE']
+            else:
+                return json_object
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
 
 if __name__ == '__main__':
-    man = FsmGermini()
+    from main.game_manager import GiocoManager
+    man = GiocoManager(Globals().get_positions())
+    _players = []
+    _players.append(Player("Davide", POSTAZIONE_SUD))
+    _players.append(Player("Tizio", POSTAZIONE_EST))
+    _players.append(Player("Caio", POSTAZIONE_NORD))
+    man = FsmGermini(man, man._gen_manager)
+
     try:
         print(man.reprJSON())
     except Exception as e:

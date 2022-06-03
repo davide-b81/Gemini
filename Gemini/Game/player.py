@@ -152,11 +152,11 @@ class Player(object):
 
     def __dict__(self):
         return dict(_id_player=str(self._name),
-                    _position=str(self._position),
-                    _punti_mano=str(self._punti_mano),
-                    _punti_partite=str(self._punti_partite),
-                    _caduto=str(self._caduto),
-                    _simulated=str(self._simulated))
+                    _position=self._position,
+                    _punti_mano=self._punti_mano,
+                    _punti_partite=self._punti_partite,
+                    _caduto=self._caduto,
+                    _simulated=self._simulated)
 
     def reprJSON(self):
         return self.__dict__()

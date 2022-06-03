@@ -10,7 +10,7 @@ from decks.carta import CartaId, Carta
 from main.exception_man import ExceptionMan
 from decks.carta_id import get_card_name
 
-VERSICOLA_REGOLARE_ID = "VERSICOLE_REGOLARI_ID"
+VERSICOLA_REGOLARE_ID = "VERSICOLA_REGOLARI_ID"
 VERSICOLA_RE_ID = "VERSICOLA_RE_ID"
 VERSICOLA_PAPI_ID = "VERSICOLA_PAPI_ID"
 VERSICOLA_MATTO_ID = "VERSICOLA_MATTO_ID"
@@ -34,22 +34,24 @@ definizione[VERSICOLA_CARNE_ID] = [CartaId.DIAVOLO_XIV, CartaId.MONDO_XXXIX, Car
 
 class VersicoleManager(object):
     _o = None
+    _pos = None
     _delegate_on_dichiara = None
     _delegate_on_punti = None
 
-    def __init__(self):
+    def __init__(self, ppos):
         try:
+            self._pos = ppos
             self._o = []
             self._delegate_on_dichiara = None
             self._delegate_on_punti = None
             self._delegate_on_allunga = None
-            self._o.append(Versicola(VERSICOLA_RE_ID, definizione[VERSICOLA_RE_ID]))
-            self._o.append(Versicola(VERSICOLA_PAPI_ID, definizione[VERSICOLA_PAPI_ID]))
-            self._o.append(Versicola(VERSICOLA_MATTO_ID, definizione[VERSICOLA_MATTO_ID]))
-            self._o.append(Versicola(VERSICOLA_DIECINE_ID, definizione[VERSICOLA_DIECINE_ID]))
-            self._o.append(Versicola(VERSICOLA_TREDICI_ID, definizione[VERSICOLA_TREDICI_ID]))
-            self._o.append(Versicola(VERSICOLA_CARNE_ID, definizione[VERSICOLA_CARNE_ID]))
-            self._o.append(Versicola(VERSICOLA_REGOLARE_ID, definizione[VERSICOLA_REGOLARE_ID]))
+            self._o.append(Versicola(VERSICOLA_RE_ID, definizione[VERSICOLA_RE_ID], ppos))
+            self._o.append(Versicola(VERSICOLA_PAPI_ID, definizione[VERSICOLA_PAPI_ID], ppos))
+            self._o.append(Versicola(VERSICOLA_MATTO_ID, definizione[VERSICOLA_MATTO_ID], ppos))
+            self._o.append(Versicola(VERSICOLA_DIECINE_ID, definizione[VERSICOLA_DIECINE_ID], ppos))
+            self._o.append(Versicola(VERSICOLA_TREDICI_ID, definizione[VERSICOLA_TREDICI_ID], ppos))
+            self._o.append(Versicola(VERSICOLA_CARNE_ID, definizione[VERSICOLA_CARNE_ID], ppos))
+            self._o.append(Versicola(VERSICOLA_REGOLARE_ID, definizione[VERSICOLA_REGOLARE_ID], ppos))
 
             for o in self._o:
                 o.set_delegate_nuova(dichiara)
@@ -62,10 +64,14 @@ class VersicoleManager(object):
     def set_delegate_on_punti(self, f):
         self._delegate_on_punti = f
 
+    @property
+    def pos(self):
+        return self._pos
+
     def reset(self):
         try:
             for o in self._o:
-                o.clear()
+                o.restore()
         except Exception as e:
             ExceptionMan.manage_exception("Error: ", e, True)
 
@@ -147,7 +153,6 @@ class VersicoleManager(object):
     def evaluate_versicole(self):
         try:
             for o in self._o:
-                #print("> " + str(o))
                 o.set_versicole()
         except Exception as e:
             ExceptionMan.manage_exception("Error. ", e, True)
@@ -196,8 +201,69 @@ class VersicoleManager(object):
         except Exception as e:
             ExceptionMan.manage_exception("Error. ", e, True)
 
+    def __iter__(self):
+        try:
+            self._i = 0
+            return self
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def __next__(self):
+        try:
+            if self._i < len(self._o):
+                ret = self._o[self._i]
+                self._i += 1
+                return ret
+            else:
+                raise StopIteration
+        except Exception as e:
+            if not isinstance(e, StopIteration):
+                ExceptionMan.manage_exception("", e, True)
+            else:
+                raise ExceptionMan.manage_exception("", e, True)
+
+    def __dict__(self):
+        return dict(
+        _listv=self._o
+        )
+
+    def restore(self):
+        try:
+            for o in self._o:
+                o.restore()
+        except Exception as e:
+            ExceptionMan.manage_exception("Error. ", e, True)
+
+    def deserVers(self, v):
+        try:
+            for w in self._o:
+                if str(v) == str(w):
+                   w._owned = v._owned
+                   w._versicole = v._versicole
+                   w._matto = v._matto
+        except Exception as e:
+            ExceptionMan.manage_exception("Error. ", e, True)
+
+    def reprJSON(self):
+        return self.__dict__()
+
+    @staticmethod
+    def fromJSON(json_object):
+        try:
+            if json_object is None:
+                return "None"
+            if '_listv' in json_object.keys():
+                return json_object
+            elif '_id_vers' in json_object.keys():
+                _id_vers = json_object['_id_vers']
+                v = Versicola.fromJSON(json_object)
+                return v
+            return None
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
 def dichiara(v, vers_id):
-    print("Versicola")
+   pass
 
 if __name__ == '__main__':
     """ Main program cycle """

@@ -141,7 +141,7 @@ if __name__ == '__main__':
 
         while running == True:
             running = on_exec()
+        sys.exit(0)
     except Exception as e:
         echo_message(e.args[0])
         sys.exit(-1)
-    sys.exit(0)

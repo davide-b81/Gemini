@@ -2,13 +2,15 @@
 #  Created on 16 2 2022
 #  @author: david
 #  '''
+import json
 from importlib.resources import _
+from json import JSONDecoder
 from time import monotonic
 
 from decks.carta_id import is_cartiglia
 from game.germini.action import Action
 from main.exception_man import ExceptionMan
-from main.globals import echo_message, FRONTE_SCOPERTA
+from main.globals import echo_message, FRONTE_SCOPERTA, ComplexEncoder
 from oggetti.posizioni import *
 
 '''
@@ -94,3 +96,31 @@ class ActionDistribuzione(Action):
             pass
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+
+    def reprJSON(self):
+        return self.__dict__()
+
+    def fromJSON(self, json_object):
+        try:
+            if '_id_action' in json_object.keys():
+                _id_action = json_object['_id_action']
+                _status = json_object['_status']
+                _newsts = json_object['_newsts']
+                a = ActionDistribuzione("")
+                return a
+            else:
+                return json_object
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+if __name__ == '__main__':
+    """ Main program cycle """
+    mm = ActionDistribuzione("")
+    from decks.carta import Carta
+
+    try:
+        cc = json.dumps(mm.reprJSON(), cls=ComplexEncoder)
+        print(cc)
+        f = JSONDecoder(object_hook=ActionDistribuzione.fromJSON).decode(cc)
+    except Exception as e:
+        ExceptionMan.manage_exception("", e, True)

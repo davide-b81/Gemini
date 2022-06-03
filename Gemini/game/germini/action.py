@@ -14,6 +14,7 @@ from main.exception_man import ExceptionMan
 
 
 class Action(metaclass=ABCMeta):
+    _id_action = None
     _status = None
     _newsts = None
     _fsm = None
@@ -22,6 +23,7 @@ class Action(metaclass=ABCMeta):
     _wait_popup = None
     _wait_delay = None
     _popup_hover = None
+    _t_action = None
 
     ACTSTATUS_DEFAULT = "ACTSTATUS_DEFAULT"
     ACTSTATUS_START = "ACTSTATUS_START"
@@ -30,6 +32,7 @@ class Action(metaclass=ABCMeta):
 
     def __init__(self, fsm):
         assert fsm is not None
+        self._id_action = str(self)
         self._status = self.ACTSTATUS_START
         self._newsts = self.ACTSTATUS_START
         self._fsm = fsm
@@ -67,12 +70,31 @@ class Action(metaclass=ABCMeta):
                 self._fsm.on_hide_popup()
                 self._popup_box = None
                 self._wait_popup = False
+            self.reset()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
     def get_status(self):
         try:
             return self._status
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def get_new_status(self):
+        try:
+            return self._newsts
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def set_status(self, sts):
+        try:
+            self._status = sts
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def set_new_status(self, sts):
+        try:
+            self._newsts = sts
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
 
@@ -85,6 +107,7 @@ class Action(metaclass=ABCMeta):
 
     def reset(self):
         try:
+            print("Reset action " + str(self))
             self._status = self.ACTSTATUS_START
             self._newsts = self.ACTSTATUS_START
         except Exception as e:
@@ -114,8 +137,11 @@ class Action(metaclass=ABCMeta):
                 if self._wait_popup:
                     pass
                 elif self._newsts != self._status:
-                    self._status = self._newsts
-                    echo_message("Action status: " + self._status)
+                    if self._newsts is not None:
+                        self._status = self._newsts
+                        echo_message("Action status: " + self._status)
+                    else:
+                        self._newsts = self._status
                 elif self._status == self.ACTSTATUS_DEFAULT:
                     pass
                 elif self._status == self.ACTSTATUS_START:
@@ -173,3 +199,20 @@ class Action(metaclass=ABCMeta):
                         self.on_popup()
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
+
+    def __dict__(self):
+        return dict(
+            _id_action=self._id_action,
+            _status=self._status,
+            _newsts=self._newsts)
+
+    @abstractmethod
+    def reprJSON(self):
+        return dict(
+            _id_action=self._id_action,
+            _status=self._status,
+            _newsts=self._newsts)
+
+    @abstractmethod
+    def fromJSON(self, json_object):
+        pass

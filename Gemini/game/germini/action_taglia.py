@@ -23,8 +23,6 @@ class ActionTaglia(Action):
     ACTSTATUS_VEDIPRIME13 = "ACTSTATUS_VEDIPRIME13"
     ACTSTATUS_SHOWULTIMA = "ACTSTATUS_SHOWULTIMA"
 
-    _t_action = None
-
     def __init__(self, fsm):
         try:
             super().__init__(fsm)
@@ -40,8 +38,8 @@ class ActionTaglia(Action):
             self._fsm.raddrizza_mazzo()
             self._fsm.set_player(self._fsm.get_mazziere())
             print("Mazziere " + str(self._fsm.get_mazziere()) + " (" + self._fsm.get_position_turno() + ")")
+            self._fsm.show_deck_packed(DeckId.DECK_MAZZO, FRONTE_COPERTA, self._fsm.get_mazziere())
             self._fsm.update_next_player(False)
-            self._fsm.show_deck_packed(DeckId.DECK_MAZZO, self._fsm.get_position_turno())
             self._newsts = self.ACTSTATUS_WAIT_TAGLIO
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
@@ -82,8 +80,8 @@ class ActionTaglia(Action):
                         else:
                             self._fsm.ricomponi_taglio(self._fsm.get_player())
                             print("Finisce il rubare di " + str(self._fsm.get_player()))
+                            self._fsm.show_deck_packed(DeckId.DECK_MAZZO, FRONTE_COPERTA, self._fsm.get_player())
                             self._fsm.set_player(self._fsm.get_mazziere())
-                            self._fsm.show_deck_packed(DeckId.DECK_MAZZO, self._fsm.get_position_turno())
                             self._fsm.get_carte(DeckId.DECK_RUBATE, self._fsm.get_player())
                             self._newsts = self.ACTSTATUS_END
 
@@ -123,7 +121,7 @@ class ActionTaglia(Action):
                             #n = 13 - self._fsm.get_num_carte_mano(self._fsm.get_player())
                             #self._fsm.mostra_mazzo(self._fsm.get_position_turno(), DeckId.DECK_MAZZO, n)
                             #self._newsts = self.ACTSTATUS_VEDIPRIME13
-                            self._fsm.show_deck_packed(DeckId.DECK_MAZZO, self._fsm.get_position_turno())
+                            self._fsm.show_deck_packed(DeckId.DECK_MAZZO, FRONTE_COPERTA)
                             self._newsts = self.ACTSTATUS_END
                 elif self._status == self.ACTSTATUS_VEDIPRIME13:
                     if not self._fsm.simulated():
@@ -140,5 +138,21 @@ class ActionTaglia(Action):
                 if is_sopraventi(c.get_id()) or c.get_id() in carte_conto:
                     return True
             return False
+        except Exception as e:
+            ExceptionMan.manage_exception("", e, True)
+
+    def reprJSON(self):
+        return self.__dict__()
+
+    def fromJSON(self, json_object):
+        try:
+            if '_id_action' in json_object.keys():
+                _id_action = json_object['_id_action']
+                _status = json_object['_status']
+                _newsts = json_object['_newsts']
+                a = ActionTaglia("")
+                return a
+            else:
+                return json_object
         except Exception as e:
             ExceptionMan.manage_exception("", e, True)
